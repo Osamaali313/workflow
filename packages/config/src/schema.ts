@@ -1,4 +1,5 @@
-import { QueueNamespaceSchema, WorldProviderSchema } from '@workflow/world';
+import { WorldProviderSchema } from '@workflow/world/provider.js';
+import { QueueNamespaceSchema } from '@workflow/world/queue.js';
 import { z } from 'zod/v4';
 
 const sourcemapSchema = z.union([

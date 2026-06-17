@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@workflow/world": "workspace:*",
+    "find-up": "7.0.0",
     "jiti": "2.7.0",
     "zod": "catalog:"
   },

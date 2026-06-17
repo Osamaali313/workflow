@@ -2,7 +2,7 @@ import { access } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { findWorkflowDataDir } from '@workflow/utils/check-data-dir';
 import { logger } from '../config/log.js';
-import { getWorkflowConfig } from '../config/workflow-config.js';
+import { resolveWorkflowCwd } from '../config/workflow-config.js';
 import { getAuthToken } from './auth.js';
 import { fetchTeamInfo } from './vercel-api.js';
 import {
@@ -80,7 +80,7 @@ async function findManifestPath(cwd: string) {
  */
 export const inferLocalWorldEnvVars = async () => {
   const envVars = getEnvVars();
-  const cwd = (await getWorkflowConfig()).workingDir;
+  const cwd = resolveWorkflowCwd();
   let repoRoot: string | undefined;
 
   // Always expose the effective working directory to the web UI/server-side helpers.
@@ -158,7 +158,7 @@ export const inferLocalWorldEnvVars = async () => {
 };
 
 export const inferVercelProjectAndTeam = async () => {
-  const cwd = (await getWorkflowConfig()).workingDir;
+  const cwd = resolveWorkflowCwd();
   let project: ProjectLink | null = null;
   try {
     logger.debug(`Inferring project and team from CWD: ${cwd}`);

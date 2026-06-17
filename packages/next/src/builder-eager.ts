@@ -395,6 +395,8 @@ export async function getNextBuilderEager() {
 
     protected async getInputFiles(): Promise<string[]> {
       const inputFiles = await super.getInputFiles();
+      if (this.config.workflowConfig?.config.build?.dirs) return inputFiles;
+
       return inputFiles.filter((file) => {
         const entry = relative(this.config.workingDir, file).replaceAll(
           '\\',

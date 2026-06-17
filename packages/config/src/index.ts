@@ -1,11 +1,6 @@
-export {
-  defineWorldProvider,
-  type ProviderValue,
-  type WorldProvider,
-} from '@workflow/world';
-export type { WorkflowConfigLoader } from './load.js';
 export type { SourcemapMode, WorkflowConfig } from './schema.js';
-export { WorkflowConfigSchema } from './schema.js';
+export type WorkflowConfigLoader =
+  typeof import('./load.js').loadWorkflowConfig;
 
 import type { WorkflowConfig } from './schema.js';
 

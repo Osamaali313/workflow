@@ -35,7 +35,6 @@ import {
 } from './module-specifier.js';
 import { createNodeModuleErrorPlugin } from './node-module-esbuild-plugin.js';
 import { createPseudoPackagePlugin } from './pseudo-package-esbuild-plugin.js';
-import { createRuntimeConfigPlugin } from './runtime-config-plugin.js';
 import { createSwcPlugin } from './swc-esbuild-plugin.js';
 import { detectWorkflowPatterns } from './transform-utils.js';
 import type { SourcemapMode, WorkflowConfig } from './types.js';
@@ -248,9 +247,19 @@ export abstract class BaseBuilder {
   }
 
   private get runtimeConfigPlugins(): esbuild.Plugin[] {
-    const workflowConfig = this.config.workflowConfig;
-    if (!workflowConfig?.found) return [];
-    return [createRuntimeConfigPlugin(workflowConfig.path)];
+    const path = this.config.workflowConfig?.path;
+    if (!path) return [];
+    return [
+      {
+        name: 'workflow-runtime-config',
+        setup(build) {
+          build.onResolve(
+            { filter: /^@workflow\/config\/runtime-binding$/ },
+            () => ({ path })
+          );
+        },
+      },
+    ];
   }
 
   protected logBaseBuilderInfo(...args: unknown[]): void {

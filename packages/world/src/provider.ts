@@ -1,8 +1,6 @@
 import { z } from 'zod/v4';
 import type { World } from './interfaces.js';
 
-export type ProviderValue<T> = T | (() => T);
-
 type WorldFactory = () => World | Promise<World>;
 
 export const WorldProviderSchema = z.strictObject({
@@ -12,15 +10,6 @@ export const WorldProviderSchema = z.strictObject({
 
 export type WorldProvider = z.infer<typeof WorldProviderSchema>;
 
-export function defineWorldProvider(
-  provider: Omit<WorldProvider, 'type'>
-): WorldProvider {
-  return WorldProviderSchema.parse({
-    type: 'world-provider',
-    ...provider,
-  });
-}
-
-export function resolveProviderValue<T>(value: ProviderValue<T>): T {
-  return typeof value === 'function' ? (value as () => T)() : value;
+export function defineWorldProvider(create: WorldFactory): WorldProvider {
+  return { type: 'world-provider', create };
 }

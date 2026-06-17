@@ -76,10 +76,10 @@ export class NestLocalBuilder extends BaseBuilder {
       config?.integration?.type === 'nest' ? config.integration : undefined;
     const build = config?.build;
     const workingDir = options.workingDir ?? process.cwd();
-    const outDir =
-      options.outDir ??
-      integration?.outDir ??
-      join(workingDir, '.nestjs/workflow');
+    const outDir = resolve(
+      workingDir,
+      options.outDir ?? integration?.outDir ?? '.nestjs/workflow'
+    );
     const dirs = options.dirs ?? build?.dirs ?? ['src'];
     const projectRoot = options.projectRoot ?? build?.projectRoot;
     super({

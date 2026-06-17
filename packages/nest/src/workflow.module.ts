@@ -2,10 +2,13 @@ import {
   type DynamicModule,
   Inject,
   Module,
+  type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
 import { createBuildQueue } from '@workflow/builders';
 import { loadWorkflowConfig } from '@workflow/config/load';
+import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
+import { closeWorld } from '@workflow/core/runtime';
 import { type NestBuilderOptions, NestLocalBuilder } from './builder.js';
 import {
   configureWorkflowController,
@@ -25,7 +28,7 @@ export interface WorkflowModuleOptions extends NestBuilderOptions {
  * Builds workflow bundles on module initialization and registers the workflow controller.
  */
 @Module({})
-export class WorkflowModule implements OnModuleInit {
+export class WorkflowModule implements OnModuleInit, OnModuleDestroy {
   private static buildQueue = createBuildQueue();
 
   constructor(
@@ -65,19 +68,28 @@ export class WorkflowModule implements OnModuleInit {
       cwd: workingDir,
       integration: 'nest',
     });
-    const integration = workflowConfig.config.integration;
+    const config = workflowConfig.config;
+    const integration =
+      config.integration?.type === 'nest' ? config.integration : undefined;
     const builder = new NestLocalBuilder({
       ...this.options,
       workflowConfig,
     });
 
-    configureWorkflowController(builder.outDir);
-    if (
-      this.options.skipBuild ??
-      (integration?.type === 'nest' ? integration.skipBuild : false)
-    )
-      return;
+    setRuntimeWorkflowConfig(config);
+
+    const publicManifest =
+      process.env.WORKFLOW_PUBLIC_MANIFEST === undefined
+        ? (config.build?.manifest?.public ?? false)
+        : process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
+    configureWorkflowController(builder.outDir, publicManifest);
+    if (this.options.skipBuild ?? integration?.skipBuild) return;
 
     await WorkflowModule.buildQueue(() => builder.build());
+  }
+
+  async onModuleDestroy() {
+    await closeWorld();
+    setRuntimeWorkflowConfig(undefined);
   }
 }

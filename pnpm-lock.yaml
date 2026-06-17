@@ -561,6 +561,9 @@ importers:
       '@workflow/world':
         specifier: workspace:*
         version: link:../world
+      find-up:
+        specifier: 7.0.0
+        version: 7.0.0
       jiti:
         specifier: 2.7.0
         version: 2.7.0
@@ -763,6 +766,9 @@ importers:
       '@workflow/config':
         specifier: workspace:*
         version: link:../config
+      '@workflow/core':
+        specifier: workspace:*
+        version: link:../core
       '@workflow/swc-plugin':
         specifier: workspace:*
         version: link:../swc-plugin-workflow
@@ -16553,7 +16559,6 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
-    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -36410,7 +36415,7 @@ snapshots:
   vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.2(@types/node@22.19.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0))
+      '@vitest/mocker': 4.0.18(vite@7.3.2(@types/node@24.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18

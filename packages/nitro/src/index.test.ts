@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
@@ -25,7 +25,7 @@ function createNitroStub({
   dev = false,
   preset = 'node-server',
   workflow = {},
-  rootDir = '/tmp/project',
+  rootDir = process.cwd(),
   externals,
   vercel,
 }: StubOptions) {
@@ -113,12 +113,49 @@ describe('@workflow/nitro virtual handlers', () => {
       );
     }
   });
+
+  it('does not import config from unbundled dev routes without a config file', async () => {
+    const nitro = createNitroStub({ routing: false, dev: true });
+
+    await nitroModule.setup(nitro);
+
+    const source = nitro.options.virtual['#workflow/workflows.mjs'];
+    expect(source).not.toContain('@workflow/config');
+  });
+
+  it('installs runtime config before importing unbundled dev routes', async () => {
+    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
+    writeFileSync(join(project, 'workflow.config.ts'), 'export default {};');
+
+    try {
+      const nitro = createNitroStub({
+        routing: false,
+        dev: true,
+        rootDir: project,
+      });
+
+      await nitroModule.setup(nitro);
+
+      const source = nitro.options.virtual['#workflow/workflows.mjs'];
+      const assignment =
+        'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;';
+      expect(source).toContain(
+        'import workflowConfig from "@workflow/config/runtime-binding";'
+      );
+      expect(source).not.toContain('@workflow/config/runtime";');
+      expect(source).toContain(assignment);
+      expect(source.indexOf(assignment)).toBeLessThan(
+        source.indexOf('import(currentImportPath)')
+      );
+    } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('@workflow/nitro workflow.config.ts', () => {
   it('applies typed Nitro settings and a namespaced queue trigger', async () => {
     const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
-    mkdirSync(join(project, '.git'));
     writeFileSync(
       join(project, 'workflow.config.ts'),
       `export default {
@@ -175,7 +212,6 @@ describe('@workflow/nitro workflow.config.ts', () => {
 
   it('prefers environment variables over workflow.config.ts', async () => {
     const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
-    mkdirSync(join(project, '.git'));
     writeFileSync(
       join(project, 'workflow.config.ts'),
       `export default {
@@ -422,7 +458,7 @@ describe('@workflow/nitro isNitroV2 detection', () => {
 });
 
 describe('@workflow/nitro externals forwarding', () => {
-  const loadedConfig = { found: false, config: {} } as const;
+  const loadedConfig = { path: undefined, config: {} } as const;
 
   for (const [label, Builder] of [
     ['VercelBuilder', VercelBuilder],

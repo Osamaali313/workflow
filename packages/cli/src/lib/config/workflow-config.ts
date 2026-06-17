@@ -3,7 +3,7 @@ import { loadWorkflowConfig } from '@workflow/config/load';
 import { config as loadDotEnv } from 'dotenv';
 import type { BuildTarget, WorkflowConfig } from './types.js';
 
-function resolveObservabilityCwd(): string {
+export function resolveWorkflowCwd(): string {
   const raw = process.env.WORKFLOW_OBSERVABILITY_CWD;
   if (!raw) {
     return process.cwd();
@@ -21,7 +21,7 @@ export const getWorkflowConfig = async (
   } = {}
 ): Promise<WorkflowConfig> => {
   const { buildTarget = 'standalone', workflowManifest, configFile } = options;
-  const workingDir = resolveObservabilityCwd();
+  const workingDir = resolveWorkflowCwd();
   loadDotEnv({
     path: resolve(workingDir, '.env.local'),
     quiet: true,

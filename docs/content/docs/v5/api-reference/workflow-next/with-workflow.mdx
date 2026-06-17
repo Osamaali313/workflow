@@ -106,7 +106,7 @@ export default withWorkflow(nextConfig, {
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `workflows.local.port` | `number` | — | Overrides the `PORT` environment variable for local development. Has no effect when deployed to Vercel. |
+| `workflows.local.port` | `number` | — | Sets the local queue URL to `http://localhost:<port>`, overriding local URL environment variables. Has no effect when deployed to Vercel. |
 | `workflows.sourcemap` | `boolean \| 'inline' \| 'linked' \| 'external' \| 'both'` | `'inline'` (dev) / `false` (prod) | Controls source maps on generated workflow bundles. See [Source maps](#source-maps) below. |
 
 ### Source maps

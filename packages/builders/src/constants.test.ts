@@ -10,9 +10,7 @@ describe('createWorkflowQueueTrigger', () => {
   });
 
   it('uses the default workflow topic without a namespace', () => {
-    expect(createWorkflowQueueTrigger(undefined).topic).toBe(
-      '__wkf_workflow_*'
-    );
+    expect(createWorkflowQueueTrigger().topic).toBe('__wkf_workflow_*');
   });
 
   it('uses an explicit namespace when provided', () => {
@@ -24,9 +22,7 @@ describe('createWorkflowQueueTrigger', () => {
   it('uses WORKFLOW_QUEUE_NAMESPACE when no explicit namespace is provided', () => {
     process.env.WORKFLOW_QUEUE_NAMESPACE = 'custom';
 
-    expect(createWorkflowQueueTrigger(undefined).topic).toBe(
-      '__custom_wkf_workflow_*'
-    );
+    expect(createWorkflowQueueTrigger().topic).toBe('__custom_wkf_workflow_*');
   });
 });
 
@@ -36,7 +32,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
   });
 
   it('omits runtime options without a namespace', () => {
-    expect(createWorkflowEntrypointOptionsCode(undefined)).toBe('');
+    expect(createWorkflowEntrypointOptionsCode()).toBe('');
   });
 
   it('inlines an explicit namespace', () => {
@@ -48,7 +44,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
   it('inlines WORKFLOW_QUEUE_NAMESPACE at build time', () => {
     process.env.WORKFLOW_QUEUE_NAMESPACE = 'custom';
 
-    expect(createWorkflowEntrypointOptionsCode(undefined)).toBe(
+    expect(createWorkflowEntrypointOptionsCode()).toBe(
       ', { namespace: "custom" }'
     );
   });

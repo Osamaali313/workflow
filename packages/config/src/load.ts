@@ -1,13 +1,7 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import {
-  basename,
-  dirname,
-  extname,
-  isAbsolute,
-  join,
-  resolve,
-} from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { basename, extname, isAbsolute, join, resolve } from 'node:path';
+import { findUp } from 'find-up';
 import { createJiti } from 'jiti';
 import {
   type WorkflowConfig,
@@ -17,17 +11,8 @@ import {
 
 const WORKFLOW_CONFIG_FILES = [
   'workflow.config.ts',
-  'workflow.config.mts',
-  'workflow.config.js',
   'workflow.config.mjs',
-] as const;
-
-const UNSUPPORTED_WORKFLOW_CONFIG_FILES = [
-  'workflow.config.cjs',
-  'workflow.config.cts',
-  'workflow.config.json',
-  'workflow.config.jsx',
-  'workflow.config.tsx',
+  'workflow.config.js',
 ] as const;
 
 export type LoadWorkflowConfigOptions = {
@@ -36,50 +21,21 @@ export type LoadWorkflowConfigOptions = {
   integration?: WorkflowIntegrationType;
 };
 
-export type LoadedWorkflowConfig =
-  | {
-      found: false;
-      config: WorkflowConfig;
-    }
-  | {
-      found: true;
-      path: string;
-      config: WorkflowConfig;
-    };
+export type LoadedWorkflowConfig = {
+  path: string | undefined;
+  config: WorkflowConfig;
+};
 
-function isSearchRoot(dir: string): boolean {
-  if (
-    existsSync(join(dir, '.git')) ||
-    existsSync(join(dir, 'pnpm-workspace.yaml'))
-  ) {
-    return true;
-  }
-
-  const packageJsonPath = join(dir, 'package.json');
-  if (!existsSync(packageJsonPath)) {
-    return false;
-  }
-
-  const packageJson: unknown = JSON.parse(
-    readFileSync(packageJsonPath, 'utf8')
-  );
-  assert(
-    packageJson !== null &&
-      typeof packageJson === 'object' &&
-      !Array.isArray(packageJson),
-    `${packageJsonPath} must contain an object.`
-  );
-  return 'workspaces' in packageJson;
-}
-
-function discoverWorkflowConfig({
+async function discoverWorkflowConfig({
   cwd,
   configFile,
-}: Pick<LoadWorkflowConfigOptions, 'cwd' | 'configFile'>): string | undefined {
+}: Pick<LoadWorkflowConfigOptions, 'cwd' | 'configFile'>): Promise<
+  string | undefined
+> {
   if (configFile) {
     const path = isAbsolute(configFile) ? configFile : resolve(cwd, configFile);
     assert(
-      ['.ts', '.mts', '.js', '.mjs'].includes(extname(path)),
+      ['.ts', '.mjs', '.js'].includes(extname(path)),
       `Unsupported Workflow config extension "${extname(path)}".`
     );
     assert(
@@ -89,45 +45,35 @@ function discoverWorkflowConfig({
     return path;
   }
 
-  let dir = resolve(cwd);
-  while (true) {
-    const unsupported = UNSUPPORTED_WORKFLOW_CONFIG_FILES.filter((file) =>
-      existsSync(join(dir, file))
-    );
-    assert(
-      unsupported.length === 0,
-      `Unsupported Workflow config file "${unsupported[0]}".`
-    );
+  return findUp(
+    (directory) => {
+      const configs = readdirSync(directory).filter((file) =>
+        file.startsWith('workflow.config.')
+      );
+      assert(
+        configs.length <= 1,
+        `Multiple Workflow config files found in ${directory}: ${configs.join(', ')}`
+      );
 
-    const configs = WORKFLOW_CONFIG_FILES.filter((file) =>
-      existsSync(join(dir, file))
-    );
-    assert(
-      configs.length <= 1,
-      `Multiple Workflow config files found in ${dir}: ${configs.join(', ')}`
-    );
-    if (configs[0]) {
-      return join(dir, configs[0]);
-    }
+      const config = configs[0];
+      if (!config) return;
 
-    if (isSearchRoot(dir)) {
-      return;
-    }
-
-    const parent = dirname(dir);
-    if (parent === dir) {
-      return;
-    }
-    dir = parent;
-  }
+      assert(
+        WORKFLOW_CONFIG_FILES.some((file) => file === config),
+        `Unsupported Workflow config file "${config}".`
+      );
+      return join(directory, config);
+    },
+    { cwd }
+  );
 }
 
 export async function loadWorkflowConfig(
   options: LoadWorkflowConfigOptions
 ): Promise<LoadedWorkflowConfig> {
-  const path = discoverWorkflowConfig(options);
+  const path = await discoverWorkflowConfig(options);
   if (!path) {
-    return { found: false, config: {} };
+    return { path, config: {} };
   }
 
   const configModule = await createJiti(import.meta.url, {
@@ -150,7 +96,5 @@ export async function loadWorkflowConfig(
     `${basename(path)} configures "${config.integration?.type}" but was loaded by "${options.integration}".`
   );
 
-  return { found: true, path, config };
+  return { path, config };
 }
-
-export type WorkflowConfigLoader = typeof loadWorkflowConfig;

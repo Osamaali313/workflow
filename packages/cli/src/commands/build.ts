@@ -28,7 +28,7 @@ export default class Build extends BaseCommand {
       description: 'output location for workflow manifest',
     }),
     config: Flags.string({
-      description: 'path to workflow.config.ts',
+      description: 'path to a Workflow config file',
     }),
   };
 

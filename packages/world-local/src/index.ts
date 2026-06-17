@@ -178,17 +178,16 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
 }
 
 /** Creates a local provider for workflow.config.ts. */
-export function localWorld(args?: Partial<Config>): WorldProvider {
-  return defineWorldProvider({
-    create: () =>
-      createLocalWorld({
-        ...args,
-        dataDir: process.env.WORKFLOW_LOCAL_DATA_DIR ?? args?.dataDir,
-        baseUrl:
-          process.env.WORKFLOW_LOCAL_BASE_URL ??
-          (process.env.PORT
-            ? `http://localhost:${process.env.PORT}`
-            : args?.baseUrl),
-      }),
-  });
+export function localWorld(args: Partial<Config> = {}): WorldProvider {
+  return defineWorldProvider(() =>
+    createLocalWorld({
+      ...args,
+      dataDir: process.env.WORKFLOW_LOCAL_DATA_DIR ?? args.dataDir,
+      baseUrl:
+        process.env.WORKFLOW_LOCAL_BASE_URL ??
+        (process.env.PORT
+          ? `http://localhost:${process.env.PORT}`
+          : args.baseUrl),
+    })
+  );
 }

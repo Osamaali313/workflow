@@ -14,9 +14,7 @@ Custom World packages can expose a typed helper with `defineWorldProvider()`:
 import { defineWorldProvider } from '@workflow/world';
 
 export function hybridWorld(options: HybridOptions) {
-  return defineWorldProvider({
-    create: () => createHybridWorld(options),
-  });
+  return defineWorldProvider(() => createHybridWorld(options));
 }
 ```
 

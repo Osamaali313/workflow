@@ -5,12 +5,17 @@ import { join } from 'pathe';
 
 // Module-level state for configuration
 let configuredOutDir: string | null = null;
+let exposePublicManifest = false;
 
 /**
  * Configure the workflow controller with the output directory
  */
-export function configureWorkflowController(outDir: string): void {
+export function configureWorkflowController(
+  outDir: string,
+  publicManifest = process.env.WORKFLOW_PUBLIC_MANIFEST === '1'
+): void {
   configuredOutDir = outDir;
+  exposePublicManifest = publicManifest;
 }
 
 /**
@@ -112,7 +117,7 @@ export class WorkflowController {
 
   @Get('manifest.json')
   async handleManifest(@Res() res: any) {
-    if (process.env.WORKFLOW_PUBLIC_MANIFEST !== '1') {
+    if (!exposePublicManifest) {
       if (typeof res.code === 'function') {
         res.code(404).send('');
       } else {

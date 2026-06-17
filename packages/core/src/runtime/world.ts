@@ -1,6 +1,5 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { type WorkflowConfig, WorkflowConfigSchema } from '@workflow/config';
 import { getRuntimeWorkflowConfig } from '@workflow/config/runtime';
 import boundWorkflowConfig from '@workflow/config/runtime-binding';
 import {
@@ -8,7 +7,7 @@ import {
   resolveWorkflowTargetWorld,
 } from '@workflow/utils';
 import type { World } from '@workflow/world';
-import { setWorkflowQueueNamespace } from '@workflow/world';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { createLocalWorld } from '@workflow/world-local';
 import { createVercelWorld } from '@workflow/world-vercel';
 
@@ -26,12 +25,10 @@ function getRuntimeRequire() {
 
 const WorldCache = Symbol.for('@workflow/world//cache');
 const WorldCachePromise = Symbol.for('@workflow/world//cachePromise');
-const RuntimeConfigPromise = Symbol.for('@workflow/config//cachePromise');
 
 const globalSymbols: typeof globalThis & {
   [WorldCache]?: World;
   [WorldCachePromise]?: Promise<World>;
-  [RuntimeConfigPromise]?: Promise<WorkflowConfig>;
 } = globalThis;
 
 // Dynamic import for custom world modules. Uses a standard import()
@@ -76,31 +73,6 @@ function resolveModulePath(specifier: string): string {
  * vars should call createVercelWorld() directly with an explicit config and
  * use setWorld() to inject the instance.
  */
-async function loadRuntimeWorkflowConfig(): Promise<WorkflowConfig> {
-  if (boundWorkflowConfig !== undefined) {
-    return WorkflowConfigSchema.parse(boundWorkflowConfig);
-  }
-
-  const installedConfig = getRuntimeWorkflowConfig();
-  if (installedConfig !== undefined) {
-    return WorkflowConfigSchema.parse(installedConfig);
-  }
-
-  if (!globalSymbols[RuntimeConfigPromise]) {
-    globalSymbols[RuntimeConfigPromise] = import('@workflow/config/load')
-      .then(({ loadWorkflowConfig }) =>
-        loadWorkflowConfig({ cwd: process.cwd() })
-      )
-      .then(({ config }) => config)
-      .catch((error) => {
-        globalSymbols[RuntimeConfigPromise] = undefined;
-        throw error;
-      });
-  }
-
-  return globalSymbols[RuntimeConfigPromise];
-}
-
 async function createLegacyWorld(): Promise<World> {
   const targetWorld = resolveWorkflowTargetWorld();
 
@@ -161,7 +133,7 @@ type ResolvedWorld =
   | { type: 'legacy'; world: World };
 
 async function resolveWorld(): Promise<ResolvedWorld> {
-  const config = await loadRuntimeWorkflowConfig();
+  const config = boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
   setWorkflowQueueNamespace(config.queue?.namespace);
 
   if (process.env.WORKFLOW_TARGET_WORLD) {

@@ -1,7 +1,6 @@
-import type { ProviderValue, World, WorldProvider } from '@workflow/world';
+import type { World, WorldProvider } from '@workflow/world';
 import {
   defineWorldProvider,
-  resolveProviderValue,
   SPEC_VERSION_SUPPORTS_COMPRESSION,
 } from '@workflow/world';
 import { createGetEncryptionKeyForRun } from './encryption.js';
@@ -56,30 +55,27 @@ export function createVercelWorld(config?: APIConfig): World {
   };
 }
 
-export type VercelWorldProviderConfig = Omit<
-  APIConfig,
-  'token' | 'dispatcher'
-> & {
-  token?: ProviderValue<string | undefined>;
-  dispatcher?: ProviderValue<unknown>;
+export type VercelWorldProviderConfig = Omit<APIConfig, 'token'> & {
+  token?: string | (() => string | undefined);
 };
 
 /** Creates a Vercel provider for workflow.config.ts. */
 export function vercelWorld(
   config: VercelWorldProviderConfig = {}
 ): WorldProvider {
-  return defineWorldProvider({
-    create: () =>
-      createVercelWorld({
-        ...config,
-        token:
-          config.token === undefined
-            ? undefined
-            : resolveProviderValue(config.token),
-        dispatcher:
-          config.dispatcher === undefined
-            ? undefined
-            : resolveProviderValue(config.dispatcher),
-      }),
+  return defineWorldProvider(() => {
+    const token =
+      process.env.VERCEL_TOKEN ??
+      (typeof config.token === 'function' ? config.token() : config.token);
+
+    return createVercelWorld({
+      ...config,
+      token,
+      projectConfig: config.projectConfig && {
+        ...config.projectConfig,
+        projectId:
+          process.env.VERCEL_PROJECT_ID ?? config.projectConfig.projectId,
+      },
+    });
   });
 }

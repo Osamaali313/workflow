@@ -25,11 +25,7 @@ export type * from './hooks.js';
 export { HookSchema } from './hooks.js';
 export type * from './interfaces.js';
 export type * from './provider.js';
-export {
-  defineWorldProvider,
-  resolveProviderValue,
-  WorldProviderSchema,
-} from './provider.js';
+export { defineWorldProvider } from './provider.js';
 export type * from './queue.js';
 export {
   getQueuePrefixKind,
@@ -37,13 +33,11 @@ export {
   HealthCheckPayloadSchema,
   MessageId,
   parseQueueName,
-  QueueNamespaceSchema,
   QueuePayloadSchema,
   QueuePrefix,
   RunInputSchema,
   resolveQueueNamespace,
   StepInvokePayloadSchema,
-  setWorkflowQueueNamespace,
   ValidQueueName,
   WorkflowInvokePayloadSchema,
 } from './queue.js';

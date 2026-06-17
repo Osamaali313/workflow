@@ -19,40 +19,45 @@ import { join, resolve } from 'pathe';
  * returns undefined.
  */
 type NitroV2ExternalsOptions = { externals?: { external?: unknown[] } };
-function getNitroStringExternals(nitro: Nitro): string[] | undefined {
+function getNitroStringExternals(nitro: Nitro): string[] {
   const external = (nitro.options as NitroV2ExternalsOptions).externals
     ?.external;
-  const strings = external?.filter(
-    (entry): entry is string => typeof entry === 'string'
+  return (
+    external?.filter((entry): entry is string => typeof entry === 'string') ??
+    []
   );
-  return strings && strings.length > 0 ? strings : undefined;
 }
 
-function mergeExternalPackages(
-  ...groups: Array<string[] | undefined>
-): string[] | undefined {
-  const packages = [...new Set(groups.flatMap((group) => group ?? []))];
-  return packages.length > 0 ? packages : undefined;
+function createNitroBuilderConfig(
+  nitro: Nitro,
+  loadedConfig: LoadedWorkflowConfig
+) {
+  const build = loadedConfig.config.build;
+  const externalPackages = [
+    ...new Set([
+      ...(build?.externalPackages ?? []),
+      ...getNitroStringExternals(nitro),
+    ]),
+  ];
+
+  return createBaseBuilderConfig({
+    workingDir: nitro.options.rootDir,
+    dirs: nitro.options.workflow?.dirs ?? build?.dirs ?? ['.'],
+    projectRoot: build?.projectRoot
+      ? resolve(nitro.options.rootDir, build.projectRoot)
+      : undefined,
+    sourcemap: nitro.options.workflow?.sourcemap,
+    externalPackages:
+      externalPackages.length > 0 ? externalPackages : undefined,
+    workflowConfig: loadedConfig,
+  });
 }
 
 export class VercelBuilder extends VercelBuildOutputAPIBuilder {
   constructor(nitro: Nitro, loadedConfig: LoadedWorkflowConfig) {
-    const buildConfig = loadedConfig.config.build;
     super({
-      ...createBaseBuilderConfig({
-        workingDir: nitro.options.rootDir,
-        dirs: nitro.options.workflow?.dirs ?? buildConfig?.dirs ?? ['.'],
-        projectRoot: buildConfig?.projectRoot
-          ? resolve(nitro.options.rootDir, buildConfig.projectRoot)
-          : undefined,
-        runtime: nitro.options.workflow?.runtime,
-        sourcemap: nitro.options.workflow?.sourcemap,
-        externalPackages: mergeExternalPackages(
-          buildConfig?.externalPackages,
-          getNitroStringExternals(nitro)
-        ),
-        workflowConfig: loadedConfig,
-      }),
+      ...createNitroBuilderConfig(nitro, loadedConfig),
+      runtime: nitro.options.workflow?.runtime,
       buildTarget: 'vercel-build-output-api',
     });
   }
@@ -73,22 +78,9 @@ export class LocalBuilder extends BaseBuilder {
   #outDir: string;
   constructor(nitro: Nitro, loadedConfig: LoadedWorkflowConfig) {
     const outDir = join(nitro.options.buildDir, 'workflow');
-    const buildConfig = loadedConfig.config.build;
     super({
-      ...createBaseBuilderConfig({
-        workingDir: nitro.options.rootDir,
-        watch: nitro.options.dev,
-        dirs: nitro.options.workflow?.dirs ?? buildConfig?.dirs ?? ['.'],
-        projectRoot: buildConfig?.projectRoot
-          ? resolve(nitro.options.rootDir, buildConfig.projectRoot)
-          : undefined,
-        sourcemap: nitro.options.workflow?.sourcemap,
-        externalPackages: mergeExternalPackages(
-          buildConfig?.externalPackages,
-          getNitroStringExternals(nitro)
-        ),
-        workflowConfig: loadedConfig,
-      }),
+      ...createNitroBuilderConfig(nitro, loadedConfig),
+      watch: nitro.options.dev,
       buildTarget: 'next', // Placeholder, not actually used
     });
     this.#outDir = outDir;

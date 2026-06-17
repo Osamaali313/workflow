@@ -45,7 +45,7 @@ function createBuilder(
       options.workflowSourcemap === undefined
         ? undefined
         : {
-            found: false,
+            path: '/tmp/workflow.config.ts',
             config: { build: { sourcemap: options.workflowSourcemap } },
           },
   };

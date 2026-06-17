@@ -71,29 +71,13 @@ World packages can expose their own typed helpers:
 import { defineWorldProvider } from "@workflow/world";
 
 export function hybridWorld(options: HybridOptions) {
-  return defineWorldProvider({
-    create: () => createHybridWorld(options),
-  });
+  return defineWorldProvider(() => createHybridWorld(options));
 }
 ```
 
-## Environment Values
-
-```typescript
-import { postgresWorld } from "@workflow/world-postgres";
-
-postgresWorld({
-  connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
-});
-```
-
-Provider fields that accept a callback read its value when the World is
-created.
-
 ## Different Worlds by Environment
 
-Choose a World inside the provider factory when one build must run against
-different infrastructure in different environments:
+Choose a World inside the provider factory based on the runtime environment:
 
 ```typescript title="workflow.config.ts" lineNumbers
 import { defineConfig } from "workflow/config";
@@ -101,18 +85,16 @@ import { defineWorldProvider } from "@workflow/world";
 import { createLocalWorld } from "@workflow/world-local";
 import { createVercelWorld } from "@workflow/world-vercel";
 
-const world = defineWorldProvider({
-  create() {
-    switch (process.env.NODE_ENV) {
-      case "production":
-        return createVercelWorld();
-      case "development":
-      case "test":
-        return createLocalWorld();
-      default:
-        throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
-    }
-  },
+const world = defineWorldProvider(() => {
+  switch (process.env.NODE_ENV) {
+    case "production":
+      return createVercelWorld();
+    case "development":
+    case "test":
+      return createLocalWorld();
+    default:
+      throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
+  }
 });
 
 export default defineConfig({ world });
