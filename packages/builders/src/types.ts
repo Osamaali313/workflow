@@ -1,3 +1,8 @@
+import type { SourcemapMode } from '@workflow/config';
+import type { LoadedWorkflowConfig } from '@workflow/config/load';
+
+export type { SourcemapMode } from '@workflow/config';
+
 export const validBuildTargets = [
   'standalone',
   'vercel-build-output-api',
@@ -7,18 +12,6 @@ export const validBuildTargets = [
   'astro',
 ] as const;
 export type BuildTarget = (typeof validBuildTargets)[number];
-
-/**
- * Source map emission mode for generated workflow bundles. Matches esbuild's
- * `sourcemap` option vocabulary:
- *
- * - `true` / `'linked'`: write a separate `.map` file and add a `sourceMappingURL` comment
- * - `'inline'`: emit a base64-encoded source map at the end of the bundle
- * - `'external'`: write a separate `.map` file without the comment
- * - `'both'`: emit both inline and external source maps
- * - `false`: omit source maps entirely
- */
-export type SourcemapMode = boolean | 'inline' | 'linked' | 'external' | 'both';
 
 /**
  * Common configuration options shared across all builder types.
@@ -48,6 +41,8 @@ interface BaseWorkflowConfig {
   externalPackages?: string[];
 
   workflowManifestPath?: string;
+
+  workflowConfig?: LoadedWorkflowConfig;
 
   // Optional prefix for debug files (e.g., "_" for Astro to ignore them)
   debugFilePrefix?: string;

@@ -406,6 +406,9 @@ importers:
       '@swc/core':
         specifier: 'catalog:'
         version: 1.15.3
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/core':
         specifier: workspace:*
         version: link:../core
@@ -418,6 +421,9 @@ importers:
       '@workflow/utils':
         specifier: workspace:*
         version: link:../utils
+      '@workflow/world':
+        specifier: workspace:*
+        version: link:../world
       builtin-modules:
         specifier: 5.0.0
         version: 5.0.0
@@ -464,6 +470,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/core':
         specifier: workspace:*
         version: link:../core
@@ -547,6 +556,28 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
 
+  packages/config:
+    dependencies:
+      '@workflow/world':
+        specifier: workspace:*
+        version: link:../world
+      jiti:
+        specifier: 2.7.0
+        version: 2.7.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.19.0
+      '@workflow/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.18(@opentelemetry/api@1.9.1)(@types/node@22.19.0)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0)
+
   packages/core:
     dependencies:
       '@aws-sdk/credential-provider-web-identity':
@@ -564,6 +595,9 @@ importers:
       '@vercel/functions':
         specifier: 'catalog:'
         version: 3.4.3(@aws-sdk/credential-provider-web-identity@3.972.49)
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/errors':
         specifier: workspace:*
         version: link:../errors
@@ -726,6 +760,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/swc-plugin':
         specifier: workspace:*
         version: link:../swc-plugin-workflow
@@ -760,6 +797,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/core':
         specifier: workspace:*
         version: link:../core
@@ -800,6 +840,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/core':
         specifier: workspace:*
         version: link:../core
@@ -1282,6 +1325,9 @@ importers:
       '@workflow/cli':
         specifier: workspace:*
         version: link:../cli
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/core':
         specifier: workspace:*
         version: link:../core
@@ -16507,6 +16553,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -36363,7 +36410,7 @@ snapshots:
   vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@22.19.0)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.2(@types/node@24.6.2)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0))
+      '@vitest/mocker': 4.0.18(vite@7.3.2(@types/node@22.19.0)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.44.0)(tsx@4.20.6)(yaml@2.9.0))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18

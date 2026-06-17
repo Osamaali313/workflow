@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
 import { describe, expect, it } from 'vitest';
 import { LocalBuilder, VercelBuilder } from './builders.js';
@@ -9,6 +12,7 @@ type StubOptions = {
   dev?: boolean;
   preset?: string;
   workflow?: { runtime?: string };
+  rootDir?: string;
   externals?: {
     external?: Array<string | RegExp | ((id: string) => boolean)>;
   };
@@ -21,6 +25,7 @@ function createNitroStub({
   dev = false,
   preset = 'node-server',
   workflow = {},
+  rootDir = '/tmp/project',
   externals,
   vercel,
 }: StubOptions) {
@@ -34,7 +39,7 @@ function createNitroStub({
       externals: externals ?? {},
       handlers: [],
       preset,
-      rootDir: '/tmp/project',
+      rootDir,
       typescript: {},
       vercel: vercel ?? {},
       virtual: {},
@@ -106,6 +111,66 @@ describe('@workflow/nitro virtual handlers', () => {
       expect(source).toContain(
         `import { POST } from "/tmp/.nitro/workflow/${buildPath}";`
       );
+    }
+  });
+});
+
+describe('@workflow/nitro workflow.config.ts', () => {
+  it('applies typed Nitro settings and a namespaced queue trigger', async () => {
+    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
+    mkdirSync(join(project, '.git'));
+    writeFileSync(
+      join(project, 'workflow.config.ts'),
+      `export default {
+  build: {
+    dirs: ['server/jobs'],
+    sourcemap: false,
+    manifest: { public: true }
+  },
+  queue: { namespace: 'myapp' },
+  integration: {
+    type: 'nitro',
+    typescriptPlugin: true,
+    runtime: 'nodejs24.x'
+  }
+};`
+    );
+
+    try {
+      const nitro = createNitroStub({
+        routing: true,
+        preset: 'vercel',
+        rootDir: project,
+      });
+
+      await nitroModule.setup(nitro);
+
+      expect(nitro.options.workflow).toMatchObject({
+        dirs: ['server/jobs'],
+        sourcemap: false,
+        typescriptPlugin: true,
+        runtime: 'nodejs24.x',
+      });
+      expect(
+        nitro.options.typescript.tsConfig.compilerOptions.plugins
+      ).toContainEqual({ name: 'workflow' });
+      expect(
+        nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
+          .experimentalTriggers
+      ).toEqual([
+        expect.objectContaining({
+          type: 'queue/v2beta',
+          topic: '__myapp_wkf_workflow_*',
+        }),
+      ]);
+      expect(
+        nitro.options.handlers.some(
+          (handler: { route: string }) =>
+            handler.route === '/.well-known/workflow/v1/manifest.json'
+        )
+      ).toBe(true);
+    } finally {
+      rmSync(project, { recursive: true, force: true });
     }
   });
 });
@@ -309,6 +374,8 @@ describe('@workflow/nitro isNitroV2 detection', () => {
 });
 
 describe('@workflow/nitro externals forwarding', () => {
+  const loadedConfig = { found: false, config: {} } as const;
+
   for (const [label, Builder] of [
     ['VercelBuilder', VercelBuilder],
     ['LocalBuilder', LocalBuilder],
@@ -316,7 +383,7 @@ describe('@workflow/nitro externals forwarding', () => {
     describe(label, () => {
       it('leaves externalPackages undefined when nitro externals are empty', () => {
         const nitro = createNitroStub({ routing: true });
-        const builder = new Builder(nitro) as any;
+        const builder = new Builder(nitro, loadedConfig) as any;
         expect(builder.config.externalPackages).toBeUndefined();
       });
 
@@ -325,7 +392,7 @@ describe('@workflow/nitro externals forwarding', () => {
           routing: true,
           externals: { external: ['fsevents', 'pg'] },
         });
-        const builder = new Builder(nitro) as any;
+        const builder = new Builder(nitro, loadedConfig) as any;
         expect(builder.config.externalPackages).toEqual(['fsevents', 'pg']);
       });
 
@@ -336,7 +403,7 @@ describe('@workflow/nitro externals forwarding', () => {
             external: [/pkg/, () => true, 'fsevents'],
           },
         });
-        const builder = new Builder(nitro) as any;
+        const builder = new Builder(nitro, loadedConfig) as any;
         expect(builder.config.externalPackages).toEqual(['fsevents']);
       });
 
@@ -345,7 +412,7 @@ describe('@workflow/nitro externals forwarding', () => {
           routing: true,
           externals: { external: [/pkg/, () => true] },
         });
-        const builder = new Builder(nitro) as any;
+        const builder = new Builder(nitro, loadedConfig) as any;
         expect(builder.config.externalPackages).toBeUndefined();
       });
     });

@@ -80,7 +80,7 @@ async function findManifestPath(cwd: string) {
  */
 export const inferLocalWorldEnvVars = async () => {
   const envVars = getEnvVars();
-  const cwd = getWorkflowConfig().workingDir;
+  const cwd = (await getWorkflowConfig()).workingDir;
   let repoRoot: string | undefined;
 
   // Always expose the effective working directory to the web UI/server-side helpers.
@@ -158,7 +158,7 @@ export const inferLocalWorldEnvVars = async () => {
 };
 
 export const inferVercelProjectAndTeam = async () => {
-  const cwd = getWorkflowConfig().workingDir;
+  const cwd = (await getWorkflowConfig()).workingDir;
   let project: ProjectLink | null = null;
   try {
     logger.debug(`Inferring project and team from CWD: ${cwd}`);

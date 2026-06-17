@@ -1,4 +1,5 @@
 import { createBuildQueue } from '@workflow/builders';
+import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
 import type { Nitro } from 'nitro/types';
@@ -10,7 +11,7 @@ import type { ModuleOptions } from './index.js';
 import nitroModule from './index.js';
 
 export function workflow(options?: ModuleOptions): Plugin[] {
-  let builder: LocalBuilder;
+  let builder: LocalBuilder | undefined;
   let workflowBuildDir: string;
   const enqueue = createBuildQueue();
 
@@ -33,7 +34,7 @@ export function workflow(options?: ModuleOptions): Plugin[] {
     {
       name: 'workflow:nitro',
       nitro: {
-        setup: (nitro: Nitro) => {
+        setup: async (nitro: Nitro) => {
           // Capture the workflow build directory for exclusion
           workflowBuildDir = join(nitro.options.buildDir, 'workflow');
           nitro.options.workflow = {
@@ -41,10 +42,14 @@ export function workflow(options?: ModuleOptions): Plugin[] {
             ...options,
             _vite: true,
           };
+          await nitroModule.setup(nitro);
           if (nitro.options.dev) {
-            builder = new LocalBuilder(nitro);
+            const loadedWorkflowConfig = await loadWorkflowConfig({
+              cwd: nitro.options.rootDir,
+              integration: 'nitro',
+            });
+            builder = new LocalBuilder(nitro, loadedWorkflowConfig);
           }
-          return nitroModule.setup(nitro);
         },
       },
       // NOTE: This is a workaround because Nitro passes the 404 requests to the dev server to handle.

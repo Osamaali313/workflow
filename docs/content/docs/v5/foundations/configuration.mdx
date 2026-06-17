@@ -1,0 +1,108 @@
+---
+title: Configuration
+description: Configure Workflow SDK worlds, builds, queues, and host integrations in one typed file.
+type: conceptual
+summary: Use workflow.config.ts as the typed source of truth for Workflow SDK settings.
+prerequisites:
+  - /docs/foundations/workflows-and-steps
+related:
+  - /docs/deploying/world/local-world
+  - /docs/deploying/world/postgres-world
+  - /docs/api-reference/workflow-next/with-workflow
+---
+
+Use `workflow.config.ts` to configure Workflow SDK:
+
+```typescript title="workflow.config.ts" lineNumbers
+import { defineConfig } from "workflow/config";
+import { postgresWorld } from "@workflow/world-postgres";
+
+export default defineConfig({
+  world: postgresWorld({
+    connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
+  }),
+  build: {
+    dirs: ["workflows"],
+    sourcemap: false,
+  },
+  integration: {
+    type: "next",
+    lazyDiscovery: true,
+  },
+});
+```
+
+<Callout type="info">
+  The config file supplies settings; it does not activate a framework
+  integration. For example, Next.js projects must still wrap
+  `next.config.ts` with `withWorkflow()`.
+</Callout>
+
+## Config File
+
+Default-export a static object. `defineConfig()` provides type checking. In a
+monorepo, place the file in the application directory; the nearest config is
+used.
+
+## Precedence
+
+From highest to lowest priority:
+
+1. Explicit CLI flags or framework options
+2. `workflow.config.ts`
+3. Environment variables
+4. Built-in defaults
+
+## World Providers
+
+The `world` field accepts a typed `WorldProvider`:
+
+```typescript
+import { localWorld } from "@workflow/world-local";
+import { postgresWorld } from "@workflow/world-postgres";
+import { vercelWorld } from "@workflow/world-vercel";
+```
+
+World packages can expose their own typed helpers:
+
+{/* @skip-typecheck: conceptual custom provider package example */}
+
+```typescript
+import { defineWorldProvider } from "@workflow/world";
+
+export function hybridWorld(options: HybridOptions) {
+  return defineWorldProvider({
+    id: "@acme/workflow-world",
+    create: () => createHybridWorld(options),
+  });
+}
+```
+
+## Environment Values
+
+```typescript
+import { postgresWorld } from "@workflow/world-postgres";
+
+postgresWorld({
+  connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
+});
+```
+
+Provider fields that accept a callback read its value when the World is
+created.
+
+## Integration Settings
+
+`integration` is optional and only needed for integration-specific behavior.
+It is a discriminated union, so one config cannot contain settings for
+multiple integrations.
+
+{/* @skip-typecheck: mutually exclusive config fragments */}
+
+```typescript
+// Next.js
+integration: { type: "next", lazyDiscovery: true }
+
+// Nitro
+integration: { type: "nitro", typescriptPlugin: true, runtime: "nodejs24.x" }
+```

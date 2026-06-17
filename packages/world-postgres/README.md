@@ -61,6 +61,24 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const worldFromPool = createWorld({ pool });
 ```
 
+### workflow.config.ts
+
+Use `postgresWorld()` in `workflow.config.ts`:
+
+```typescript
+import { defineConfig } from 'workflow/config';
+import { postgresWorld } from '@workflow/world-postgres';
+
+export default defineConfig({
+  world: postgresWorld({
+    connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
+    jobPrefix: 'myapp_',
+    queueConcurrency: 50,
+    maxPoolSize: 52,
+  }),
+});
+```
+
 ## Configuration Options
 
 | Option             | Type      | Default                                                                                | Description                                                                                          |

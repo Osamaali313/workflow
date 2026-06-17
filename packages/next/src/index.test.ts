@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -219,6 +219,81 @@ describe('withWorkflow builder config', () => {
     expect(webpackConfig?.externals).toEqual([{ react: 'commonjs react' }]);
   });
 
+  it('applies workflow.config.ts to the Next builder and runtime binding', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
+    process.chdir(projectDir);
+    mkdirSync(join(projectDir, '.git'));
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `const world = {
+  type: 'world-provider',
+  id: 'configured-world',
+  create: () => {
+    throw new Error('World provider factory must not run during builds');
+  }
+};
+
+export default {
+  world,
+  build: {
+    dirs: ['jobs'],
+    projectRoot: '../repo-root',
+    externalPackages: ['configured-external'],
+    sourcemap: false,
+    manifest: { public: true, output: 'custom-manifest.json' }
+  },
+  queue: { namespace: 'myapp' },
+  integration: {
+    type: 'next',
+    local: { port: 4321 }
+  }
+};`
+    );
+    try {
+      const config = withWorkflow({});
+      const resolvedConfig = await config('phase-production-build', {
+        defaultConfig: {},
+      });
+
+      expect(process.env.PORT).toBe('4321');
+      expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
+      expect(builderConfigs[0]).toMatchObject({
+        dirs: ['jobs'],
+        projectRoot: resolve(projectDir, '../repo-root'),
+        workflowConfig: {
+          found: true,
+          path: join(projectDir, 'workflow.config.ts'),
+          config: {
+            build: {
+              sourcemap: false,
+              manifest: {
+                public: true,
+                output: 'custom-manifest.json',
+              },
+            },
+            queue: { namespace: 'myapp' },
+          },
+        },
+      });
+      expect(builderConfigs[0]?.externalPackages).toContain(
+        'configured-external'
+      );
+      expect(resolvedConfig.serverExternalPackages).toContain(
+        'configured-world'
+      );
+      expect(
+        (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
+          '@workflow/config/runtime-binding'
+        ]
+      ).toBe(join(projectDir, 'workflow.config.ts'));
+      expect(resolvedConfig.outputFileTracingIncludes?.['/*']).toContain(
+        'workflow.config.ts'
+      );
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
   it('removes workflow packages from serverExternalPackages for this build', async () => {
     const projectDir = mkdtempSync(
       join(realTmpDir, 'workflow-next-server-external-')

@@ -1,5 +1,15 @@
-import type { Storage, World } from '@workflow/world';
-import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
+import type {
+  ProviderValue,
+  Storage,
+  World,
+  WorldProvider,
+} from '@workflow/world';
+import {
+  defineWorldProvider,
+  reenqueueActiveRuns,
+  resolveProviderValue,
+  SPEC_VERSION_CURRENT,
+} from '@workflow/world';
 import { Pool } from 'pg';
 import type { PostgresWorldConfig } from './config.js';
 import { createClient, type Drizzle } from './drizzle/index.js';
@@ -30,29 +40,36 @@ function getDefaultMaxPoolSize(): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+function getDefaultQueueConcurrency(): number {
+  return (
+    parseInt(process.env.WORKFLOW_POSTGRES_WORKER_CONCURRENCY || '50', 10) || 50
+  );
+}
+
 export function createWorld(
   config: PostgresWorldConfig = {
     connectionString:
       process.env.WORKFLOW_POSTGRES_URL ||
       'postgres://world:world@localhost:5432/world',
-    jobPrefix: process.env.WORKFLOW_POSTGRES_JOB_PREFIX,
-    queueConcurrency:
-      parseInt(process.env.WORKFLOW_POSTGRES_WORKER_CONCURRENCY || '50', 10) ||
-      50,
   }
 ): World & { start(): Promise<void> } {
-  const maxPoolSize = config.maxPoolSize ?? getDefaultMaxPoolSize();
+  const resolvedConfig = {
+    ...config,
+    jobPrefix: config.jobPrefix ?? process.env.WORKFLOW_POSTGRES_JOB_PREFIX,
+    queueConcurrency: config.queueConcurrency ?? getDefaultQueueConcurrency(),
+  };
+  const maxPoolSize = resolvedConfig.maxPoolSize ?? getDefaultMaxPoolSize();
   const pool =
-    config.pool ||
+    resolvedConfig.pool ||
     new Pool({
       connectionString:
-        config.connectionString ||
+        resolvedConfig.connectionString ||
         'postgres://world:world@localhost:5432/world',
       ...(maxPoolSize !== undefined ? { max: maxPoolSize } : {}),
     });
 
   const drizzle = createClient(pool);
-  const queue = createQueue(config, pool);
+  const queue = createQueue(resolvedConfig, pool);
   const storage = createStorage(drizzle);
   const streamer = createStreamer(pool, drizzle);
 
@@ -61,8 +78,8 @@ export function createWorld(
     ...storage,
     ...streamer,
     ...queue,
-    ...(config.streamFlushIntervalMs !== undefined && {
-      streamFlushIntervalMs: config.streamFlushIntervalMs,
+    ...(resolvedConfig.streamFlushIntervalMs !== undefined && {
+      streamFlushIntervalMs: resolvedConfig.streamFlushIntervalMs,
     }),
     async start() {
       await queue.start();
@@ -71,11 +88,39 @@ export function createWorld(
     async close() {
       await streamer.close();
       await queue.close();
-      if (pool !== config.pool) {
+      if (pool !== resolvedConfig.pool) {
         await pool.end();
       }
     },
   };
+}
+
+export type PostgresWorldProviderConfig = Omit<
+  Extract<PostgresWorldConfig, { connectionString: string }>,
+  'connectionString' | 'namespace' | 'pool'
+> & {
+  connectionString?: ProviderValue<string>;
+};
+
+/** Creates a PostgreSQL provider for workflow.config.ts. */
+export function postgresWorld(
+  config: PostgresWorldProviderConfig = {}
+): WorldProvider {
+  return defineWorldProvider({
+    id: '@workflow/world-postgres',
+    create: () =>
+      createWorld({
+        connectionString:
+          config.connectionString === undefined
+            ? process.env.WORKFLOW_POSTGRES_URL ||
+              'postgres://world:world@localhost:5432/world'
+            : resolveProviderValue(config.connectionString),
+        jobPrefix: config.jobPrefix,
+        queueConcurrency: config.queueConcurrency,
+        maxPoolSize: config.maxPoolSize,
+        streamFlushIntervalMs: config.streamFlushIntervalMs,
+      }),
+  });
 }
 
 // Re-export schema for users who want to extend or inspect the database schema

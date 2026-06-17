@@ -1,10 +1,14 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { type WorkflowConfig, WorkflowConfigSchema } from '@workflow/config';
+import { getRuntimeWorkflowConfig } from '@workflow/config/runtime';
+import boundWorkflowConfig from '@workflow/config/runtime-binding';
 import {
   isVercelWorldTarget,
   resolveWorkflowTargetWorld,
 } from '@workflow/utils';
 import type { World } from '@workflow/world';
+import { setWorkflowQueueNamespace } from '@workflow/world';
 import { createLocalWorld } from '@workflow/world-local';
 import { createVercelWorld } from '@workflow/world-vercel';
 
@@ -14,24 +18,20 @@ function getRuntimeRequire() {
   // dependencies of @workflow/core. Using import.meta.url would resolve
   // from core's location, missing app-level packages.
   try {
-    return createRequire(pathToFileURL(process.cwd() + '/package.json').href);
+    return createRequire(pathToFileURL(`${process.cwd()}/package.json`).href);
   } catch {
     return createRequire(import.meta.url);
   }
 }
 
 const WorldCache = Symbol.for('@workflow/world//cache');
-const StubbedWorldCache = Symbol.for('@workflow/world//stubbedCache');
 const WorldCachePromise = Symbol.for('@workflow/world//cachePromise');
-const StubbedWorldCachePromise = Symbol.for(
-  '@workflow/world//stubbedCachePromise'
-);
+const RuntimeConfigPromise = Symbol.for('@workflow/config//cachePromise');
 
 const globalSymbols: typeof globalThis & {
   [WorldCache]?: World;
-  [StubbedWorldCache]?: World;
   [WorldCachePromise]?: Promise<World>;
-  [StubbedWorldCachePromise]?: Promise<World>;
+  [RuntimeConfigPromise]?: Promise<WorkflowConfig>;
 } = globalThis;
 
 // Dynamic import for custom world modules. Uses a standard import()
@@ -53,7 +53,7 @@ function resolveModulePath(specifier: string): string {
   // Relative path - resolve relative to cwd and convert to file:// URL
   if (specifier.startsWith('./') || specifier.startsWith('../')) {
     return pathToFileURL(
-      /* turbopackIgnore: true */ process.cwd() + '/' + specifier
+      /* turbopackIgnore: true */ `${process.cwd()}/${specifier}`
     ).href;
   }
   // Package specifier - use require.resolve to find the package
@@ -76,7 +76,32 @@ function resolveModulePath(specifier: string): string {
  * vars should call createVercelWorld() directly with an explicit config and
  * use setWorld() to inject the instance.
  */
-export const createWorld = async (): Promise<World> => {
+async function loadRuntimeWorkflowConfig(): Promise<WorkflowConfig> {
+  if (boundWorkflowConfig !== undefined) {
+    return WorkflowConfigSchema.parse(boundWorkflowConfig);
+  }
+
+  const installedConfig = getRuntimeWorkflowConfig();
+  if (installedConfig !== undefined) {
+    return WorkflowConfigSchema.parse(installedConfig);
+  }
+
+  if (!globalSymbols[RuntimeConfigPromise]) {
+    globalSymbols[RuntimeConfigPromise] = import('@workflow/config/load')
+      .then(({ loadWorkflowConfig }) =>
+        loadWorkflowConfig({ cwd: process.cwd() })
+      )
+      .then(({ config }) => config)
+      .catch((error) => {
+        globalSymbols[RuntimeConfigPromise] = undefined;
+        throw error;
+      });
+  }
+
+  return globalSymbols[RuntimeConfigPromise];
+}
+
+async function createLegacyWorld(): Promise<World> {
   const targetWorld = resolveWorkflowTargetWorld();
 
   if (isVercelWorldTarget(targetWorld)) {
@@ -129,36 +154,58 @@ export const createWorld = async (): Promise<World> => {
   throw new Error(
     `Invalid target world module: ${targetWorld}, must export a default function or createWorld function that returns a World instance.`
   );
+}
+
+type ResolvedWorld =
+  | { type: 'configured'; world: World }
+  | { type: 'legacy'; world: World };
+
+async function resolveWorld(): Promise<ResolvedWorld> {
+  const config = await loadRuntimeWorkflowConfig();
+  setWorkflowQueueNamespace(config.queue?.namespace);
+
+  if (config.world) {
+    if (process.env.WORKFLOW_TARGET_WORLD) {
+      console.warn(
+        `[workflow] The Workflow config provides World provider "${config.world.id}", so WORKFLOW_TARGET_WORLD="${process.env.WORKFLOW_TARGET_WORLD}" is ignored.`
+      );
+    }
+
+    return {
+      type: 'configured',
+      world: await config.world.create(),
+    };
+  }
+
+  return {
+    type: 'legacy',
+    world: await createLegacyWorld(),
+  };
+}
+
+/**
+ * Create a new World instance from workflow.config.ts when configured, or
+ * from the legacy WORKFLOW_TARGET_WORLD environment selection.
+ *
+ * This function does not call World.start(). Use getWorld() for the managed
+ * runtime singleton.
+ */
+export const createWorld = async (): Promise<World> => {
+  return (await resolveWorld()).world;
 };
 
 export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
 
 /**
- * Some functions from the world are needed at build time, but we do NOT want
- * to cache the world in those instances for general use, since we don't have
- * the correct environment variables set yet. This is a safe function to
- * call at build time, that only gives access to non-environment-bound world
- * functions. The only binding value should be the target world.
- * Once we migrate to a file-based configuration (workflow.config.ts), we should
- * be able to re-combine getWorld and getWorldHandlers into one singleton.
+ * Queue handlers and regular runtime calls share one managed World. Provider
+ * factories are never called by config loading or the build integrations;
+ * this path is reached only when host runtime code asks for a handler.
  */
 export const getWorldHandlers = async (): Promise<WorldHandlers> => {
-  if (globalSymbols[StubbedWorldCache]) {
-    return globalSymbols[StubbedWorldCache];
-  }
-  // Store the promise immediately to prevent race conditions with concurrent calls.
-  // Clear on rejection so subsequent calls can retry instead of caching the failure.
-  if (!globalSymbols[StubbedWorldCachePromise]) {
-    globalSymbols[StubbedWorldCachePromise] = createWorld().catch((err) => {
-      globalSymbols[StubbedWorldCachePromise] = undefined;
-      throw err;
-    });
-  }
-  const _world = await globalSymbols[StubbedWorldCachePromise];
-  globalSymbols[StubbedWorldCache] = _world;
+  const world = await getWorld();
   return {
-    createQueueHandler: _world.createQueueHandler,
-    specVersion: _world.specVersion,
+    createQueueHandler: world.createQueueHandler,
+    specVersion: world.specVersion,
   };
 };
 
@@ -169,10 +216,23 @@ export const getWorld = async (): Promise<World> => {
   // Store the promise immediately to prevent race conditions with concurrent calls.
   // Clear on rejection so subsequent calls can retry instead of caching the failure.
   if (!globalSymbols[WorldCachePromise]) {
-    globalSymbols[WorldCachePromise] = createWorld().catch((err) => {
-      globalSymbols[WorldCachePromise] = undefined;
-      throw err;
-    });
+    globalSymbols[WorldCachePromise] = resolveWorld()
+      .then(async (resolved) => {
+        switch (resolved.type) {
+          case 'configured':
+            await resolved.world.start?.();
+            return resolved.world;
+          case 'legacy':
+            return resolved.world;
+          default:
+            resolved satisfies never;
+            throw new Error('Unknown World resolution type');
+        }
+      })
+      .catch((err) => {
+        globalSymbols[WorldCachePromise] = undefined;
+        throw err;
+      });
   }
   globalSymbols[WorldCache] = await globalSymbols[WorldCachePromise];
   return globalSymbols[WorldCache];
@@ -184,9 +244,21 @@ export const getWorld = async (): Promise<World> => {
  */
 export const setWorld = (world: World | undefined): void => {
   globalSymbols[WorldCache] = world;
-  globalSymbols[StubbedWorldCache] = world;
   globalSymbols[WorldCachePromise] = undefined;
-  globalSymbols[StubbedWorldCachePromise] = undefined;
+};
+
+/**
+ * Close the cached World without creating one just for cleanup.
+ */
+export const closeWorld = async (): Promise<void> => {
+  const cachedWorld = globalSymbols[WorldCache];
+  const pendingWorld = globalSymbols[WorldCachePromise];
+
+  globalSymbols[WorldCache] = undefined;
+  globalSymbols[WorldCachePromise] = undefined;
+
+  const world = cachedWorld ?? (pendingWorld ? await pendingWorld : undefined);
+  await world?.close?.();
 };
 
 // Register getWorld on globalThis so getWorldLazy can call it directly when

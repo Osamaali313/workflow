@@ -45,6 +45,7 @@
     "@swc/core": "catalog:",
     "@vercel/cli-auth": "0.0.1",
     "@workflow/builders": "workspace:*",
+    "@workflow/config": "workspace:*",
     "@workflow/core": "workspace:*",
     "@workflow/errors": "workspace:*",
     "@workflow/swc-plugin": "workspace:*",

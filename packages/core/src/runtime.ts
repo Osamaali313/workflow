@@ -118,6 +118,7 @@ export {
 // prevents Turbopack from tracing step-handler.js → get-port.js
 // filesystem operations into the flow route bundle.
 export {
+  closeWorld,
   createWorld,
   getWorld,
   getWorldHandlers,

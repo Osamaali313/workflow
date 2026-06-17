@@ -38,6 +38,10 @@
       "workflow": "./dist/api-workflow.js",
       "default": "./dist/api.js"
     },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
     "./errors": "./dist/internal/errors.js",
     "./internal/errors": "./dist/internal/errors.js",
     "./internal/builtins": "./dist/internal/builtins.js",
@@ -67,6 +71,7 @@
   "dependencies": {
     "@workflow/astro": "workspace:*",
     "@workflow/cli": "workspace:*",
+    "@workflow/config": "workspace:*",
     "@workflow/core": "workspace:*",
     "@workflow/errors": "workspace:*",
     "@workflow/typescript-plugin": "workspace:*",

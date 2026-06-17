@@ -4,8 +4,9 @@ import {
   createBaseBuilderConfig,
   VercelBuildOutputAPIBuilder,
 } from '@workflow/builders';
+import type { LoadedWorkflowConfig } from '@workflow/config/load';
 import type { Nitro } from 'nitro/types';
-import { join } from 'pathe';
+import { join, resolve } from 'pathe';
 
 /**
  * Forward string entries from Nitro's `externals.external` config to the
@@ -27,15 +28,30 @@ function getNitroStringExternals(nitro: Nitro): string[] | undefined {
   return strings && strings.length > 0 ? strings : undefined;
 }
 
+function mergeExternalPackages(
+  ...groups: Array<string[] | undefined>
+): string[] | undefined {
+  const packages = [...new Set(groups.flatMap((group) => group ?? []))];
+  return packages.length > 0 ? packages : undefined;
+}
+
 export class VercelBuilder extends VercelBuildOutputAPIBuilder {
-  constructor(nitro: Nitro) {
+  constructor(nitro: Nitro, loadedConfig: LoadedWorkflowConfig) {
+    const buildConfig = loadedConfig.config.build;
     super({
       ...createBaseBuilderConfig({
         workingDir: nitro.options.rootDir,
-        dirs: ['.'], // Different apps that use nitro have different directories
+        dirs: nitro.options.workflow?.dirs ?? buildConfig?.dirs ?? ['.'],
+        projectRoot: buildConfig?.projectRoot
+          ? resolve(nitro.options.rootDir, buildConfig.projectRoot)
+          : undefined,
         runtime: nitro.options.workflow?.runtime,
         sourcemap: nitro.options.workflow?.sourcemap,
-        externalPackages: getNitroStringExternals(nitro),
+        externalPackages: mergeExternalPackages(
+          buildConfig?.externalPackages,
+          getNitroStringExternals(nitro)
+        ),
+        workflowConfig: loadedConfig,
       }),
       buildTarget: 'vercel-build-output-api',
     });
@@ -55,15 +71,23 @@ export class VercelBuilder extends VercelBuildOutputAPIBuilder {
 
 export class LocalBuilder extends BaseBuilder {
   #outDir: string;
-  constructor(nitro: Nitro) {
+  constructor(nitro: Nitro, loadedConfig: LoadedWorkflowConfig) {
     const outDir = join(nitro.options.buildDir, 'workflow');
+    const buildConfig = loadedConfig.config.build;
     super({
       ...createBaseBuilderConfig({
         workingDir: nitro.options.rootDir,
         watch: nitro.options.dev,
-        dirs: ['.'], // Different apps that use nitro have different directories
+        dirs: nitro.options.workflow?.dirs ?? buildConfig?.dirs ?? ['.'],
+        projectRoot: buildConfig?.projectRoot
+          ? resolve(nitro.options.rootDir, buildConfig.projectRoot)
+          : undefined,
         sourcemap: nitro.options.workflow?.sourcemap,
-        externalPackages: getNitroStringExternals(nitro),
+        externalPackages: mergeExternalPackages(
+          buildConfig?.externalPackages,
+          getNitroStringExternals(nitro)
+        ),
+        workflowConfig: loadedConfig,
       }),
       buildTarget: 'next', // Placeholder, not actually used
     });

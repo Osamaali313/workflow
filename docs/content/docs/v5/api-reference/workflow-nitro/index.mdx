@@ -9,6 +9,10 @@ related:
 
 Nitro integration for Workflow SDK. The `workflow/nitro` entry point's default export is a [Nitro module](https://v3.nitro.build/guide/modules) — it has no callable API. You enable it by adding it to the `modules` array of your Nitro config and configure it via the `workflow` key.
 
+Generic build settings and Nitro-specific options may also be placed in
+[`workflow.config.ts`](/docs/foundations/configuration). Explicit
+`nitro.options.workflow` values take precedence.
+
 ## Usage
 
 ```typescript title="nitro.config.ts" lineNumbers

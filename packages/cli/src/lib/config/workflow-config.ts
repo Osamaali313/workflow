@@ -1,5 +1,7 @@
-import type { BuildTarget, WorkflowConfig } from './types.js';
 import { resolve } from 'node:path';
+import { loadWorkflowConfig } from '@workflow/config/load';
+import { config as loadDotEnv } from 'dotenv';
+import type { BuildTarget, WorkflowConfig } from './types.js';
 
 function resolveObservabilityCwd(): string {
   const raw = process.env.WORKFLOW_OBSERVABILITY_CWD;
@@ -11,21 +13,38 @@ function resolveObservabilityCwd(): string {
   return resolve(process.cwd(), raw);
 }
 
-export const getWorkflowConfig = (
-  {
-    buildTarget,
-    workflowManifest,
-  }: {
+export const getWorkflowConfig = async (
+  options: {
     buildTarget?: BuildTarget;
     workflowManifest?: string;
-  } = {
-    buildTarget: 'standalone',
-  }
-) => {
+    configFile?: string;
+  } = {}
+): Promise<WorkflowConfig> => {
+  const { buildTarget = 'standalone', workflowManifest, configFile } = options;
+  const workingDir = resolveObservabilityCwd();
+  loadDotEnv({
+    path: resolve(workingDir, '.env.local'),
+    quiet: true,
+  });
+  loadDotEnv({
+    path: resolve(workingDir, '.env'),
+    quiet: true,
+  });
+
+  const loadedConfig = await loadWorkflowConfig({
+    cwd: workingDir,
+    configFile,
+  });
+  const fileConfig = loadedConfig.config;
   const config: WorkflowConfig = {
-    dirs: ['./workflows'],
-    workingDir: resolveObservabilityCwd(),
-    buildTarget: buildTarget as BuildTarget,
+    dirs: fileConfig.build?.dirs ?? ['./workflows'],
+    workingDir,
+    projectRoot: fileConfig.build?.projectRoot
+      ? resolve(workingDir, fileConfig.build.projectRoot)
+      : undefined,
+    externalPackages: fileConfig.build?.externalPackages,
+    workflowConfig: loadedConfig,
+    buildTarget,
     stepsBundlePath: './.well-known/workflow/v1/step.mjs',
     workflowsBundlePath: './.well-known/workflow/v1/flow.mjs',
     webhookBundlePath: './.well-known/workflow/v1/webhook.mjs',

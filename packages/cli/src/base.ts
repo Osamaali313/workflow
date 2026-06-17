@@ -1,5 +1,5 @@
 import { Command } from '@oclif/core';
-import { getWorld } from '@workflow/core/runtime';
+import { closeWorld } from '@workflow/core/runtime';
 
 async function flushStream(stream: NodeJS.WriteStream): Promise<void> {
   if (
@@ -37,8 +37,7 @@ export abstract class BaseCommand extends Command {
    */
   async finally(err: Error | undefined): Promise<void> {
     try {
-      const world = await getWorld();
-      await world.close?.();
+      await closeWorld();
     } catch (closeErr) {
       this.warn(
         `Failed to close world: ${closeErr instanceof Error ? closeErr.message : String(closeErr)}`

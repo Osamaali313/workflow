@@ -1,5 +1,9 @@
-import type { World } from '@workflow/world';
-import { SPEC_VERSION_SUPPORTS_COMPRESSION } from '@workflow/world';
+import type { ProviderValue, World, WorldProvider } from '@workflow/world';
+import {
+  defineWorldProvider,
+  resolveProviderValue,
+  SPEC_VERSION_SUPPORTS_COMPRESSION,
+} from '@workflow/world';
 import { createGetEncryptionKeyForRun } from './encryption.js';
 import { instrumentObject } from './instrumentObject.js';
 import { createQueue } from './queue.js';
@@ -50,4 +54,33 @@ export function createVercelWorld(config?: APIConfig): World {
     ),
     resolveLatestDeploymentId: createResolveLatestDeploymentId(config),
   };
+}
+
+export type VercelWorldProviderConfig = Omit<
+  APIConfig,
+  'token' | 'dispatcher'
+> & {
+  token?: ProviderValue<string | undefined>;
+  dispatcher?: ProviderValue<unknown>;
+};
+
+/** Creates a Vercel provider for workflow.config.ts. */
+export function vercelWorld(
+  config: VercelWorldProviderConfig = {}
+): WorldProvider {
+  return defineWorldProvider({
+    id: '@workflow/world-vercel',
+    create: () =>
+      createVercelWorld({
+        ...config,
+        token:
+          config.token === undefined
+            ? undefined
+            : resolveProviderValue(config.token),
+        dispatcher:
+          config.dispatcher === undefined
+            ? undefined
+            : resolveProviderValue(config.dispatcher),
+      }),
+  });
 }

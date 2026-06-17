@@ -1,0 +1,61 @@
+{
+  "name": "@workflow/config",
+  "version": "5.0.0-beta.0",
+  "description": "Typed configuration for Workflow SDK",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./load": {
+      "import": {
+        "types": "./dist/load.d.ts",
+        "default": "./dist/load.js"
+      },
+      "require": {
+        "types": "./dist/load.d.cts",
+        "default": "./dist/load.cjs"
+      }
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "default": "./dist/runtime.js"
+    },
+    "./runtime-binding": {
+      "types": "./dist/runtime-binding.d.ts",
+      "default": "./dist/runtime-binding.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/workflow.git",
+    "directory": "packages/config"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "tsc --build --clean && rm -rf dist",
+    "dev": "tsc --watch",
+    "test": "vitest run src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workflow/world": "workspace:*",
+    "jiti": "2.7.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@workflow/tsconfig": "workspace:*",
+    "vitest": "catalog:"
+  }
+}

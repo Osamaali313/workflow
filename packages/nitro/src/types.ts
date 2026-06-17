@@ -1,3 +1,5 @@
+import type { SourcemapMode } from '@workflow/config';
+
 export interface ModuleOptions {
   /** @internal */
   _vite?: boolean;
@@ -34,7 +36,7 @@ export interface ModuleOptions {
    *
    * Can also be set via the `WORKFLOW_SOURCEMAP` environment variable.
    */
-  sourcemap?: boolean | 'inline' | 'linked' | 'external' | 'both';
+  sourcemap?: SourcemapMode;
 }
 
 declare module 'nitro/types' {

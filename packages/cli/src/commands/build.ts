@@ -26,7 +26,9 @@ export default class Build extends BaseCommand {
     'workflow-manifest': Flags.string({
       char: 'm',
       description: 'output location for workflow manifest',
-      default: '',
+    }),
+    config: Flags.string({
+      description: 'path to workflow.config.ts',
     }),
   };
 
@@ -69,9 +71,10 @@ export default class Build extends BaseCommand {
 
     this.logInfo(`Using target: ${buildTarget}`);
 
-    const config = getWorkflowConfig({
+    const config = await getWorkflowConfig({
       buildTarget: buildTarget as BuildTarget,
       workflowManifest: flags['workflow-manifest'],
+      configFile: flags.config,
     });
 
     try {

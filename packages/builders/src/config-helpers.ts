@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import type { LoadedWorkflowConfig } from '@workflow/config/load';
 import { findUp } from 'find-up';
 import JSON5 from 'json5';
 import type { SourcemapMode, WorkflowConfig } from './types.js';
@@ -97,6 +98,7 @@ export function createBaseBuilderConfig(options: {
   externalPackages?: string[];
   runtime?: string;
   sourcemap?: SourcemapMode;
+  workflowConfig?: LoadedWorkflowConfig;
 }): Omit<WorkflowConfig, 'buildTarget'> {
   return {
     dirs: options.dirs ?? ['workflows'],
@@ -109,5 +111,6 @@ export function createBaseBuilderConfig(options: {
     externalPackages: options.externalPackages,
     runtime: options.runtime,
     sourcemap: options.sourcemap,
+    workflowConfig: options.workflowConfig,
   };
 }

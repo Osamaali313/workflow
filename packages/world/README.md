@@ -4,4 +4,20 @@ Core interfaces and types for Workflow SDK storage backends.
 
 This package defines the `World` interface that abstracts workflow storage, queuing, authentication, and streaming operations. Implementation packages like `@workflow/world-local` and `@workflow/world-vercel` provide concrete implementations.
 
-Used internally by `@workflow/core` and world implementations. Should not be used directly in application code.
+It also defines the `WorldProvider` contract used by `workflow.config.ts`.
+
+Custom World packages can expose a typed helper with `defineWorldProvider()`:
+
+```ts
+import { defineWorldProvider } from '@workflow/world';
+
+export function hybridWorld(options: HybridOptions) {
+  return defineWorldProvider({
+    id: '@acme/workflow-world',
+    create: () => createHybridWorld(options),
+  });
+}
+```
+
+Most applications should use a provider helper from a World implementation
+instead of importing this package directly.
