@@ -34,8 +34,7 @@ Real-time data streaming via **PostgreSQL LISTEN/NOTIFY**:
 ## Setup
 
 Call `world.start()` to initialize graphile-worker workers when constructing a
-World directly. A World factory configured in `workflow.config.ts` is started
-once by `getWorld()`.
+World directly. The runtime starts a World selected in `workflow.config.ts`.
 
 When `.start()` is called, workers begin listening to graphile-worker queues.
 When a job arrives, the worker executes the queue message over the workflow

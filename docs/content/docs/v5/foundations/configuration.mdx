@@ -1,8 +1,8 @@
 ---
 title: Configuration
-description: Configure Workflow SDK worlds, builds, queues, and host integrations in one typed file.
+description: Configure Workflow SDK with a typed workflow.config.ts file.
 type: conceptual
-summary: Use workflow.config.ts as the typed source of truth for Workflow SDK settings.
+summary: Configure the World, builds, and framework integration for your app.
 prerequisites:
   - /docs/foundations/workflows-and-steps
 related:
@@ -11,7 +11,7 @@ related:
   - /docs/api-reference/workflow-next/with-workflow
 ---
 
-Use `workflow.config.ts` to configure Workflow SDK:
+Create `workflow.config.ts` in your application:
 
 ```typescript title="workflow.config.ts" lineNumbers
 import type { WorkflowConfig } from "workflow/config";
@@ -33,16 +33,11 @@ export default config;
 ```
 
 <Callout type="info">
-  The config file supplies settings; it does not activate a framework
-  integration. For example, Next.js projects must still wrap
-  `next.config.ts` with `withWorkflow()`.
+  Next.js projects also wrap `next.config.ts` with `withWorkflow()`.
 </Callout>
 
-## Config File
-
-Default-export a `WorkflowConfig` object. Top-level config functions are not
-supported; keep runtime World selection inside `world`. In a monorepo, place
-the file in the application directory; the nearest config is used.
+In a monorepo, place a config file in each application that needs its own
+settings.
 
 ## Precedence
 
@@ -55,11 +50,10 @@ From highest to lowest priority:
 
 ## World
 
-`world` is a zero-argument function that creates a World. It runs when the
-application first needs the World, not when the config is loaded during a
-build. Pass a World constructor directly, or wrap it to provide options.
+`world` is the function used to create the application's World. Assign a
+`createWorld` function directly, or wrap it when passing options.
 
-## Different Worlds by Environment
+## Worlds by Environment
 
 Choose a World inside the factory based on the runtime environment:
 
@@ -87,9 +81,8 @@ export default config;
 
 ## Integration Settings
 
-`integration` is optional and only needed for integration-specific behavior.
-It is a discriminated union, so one config cannot contain settings for
-multiple integrations.
+Use `integration` for framework-specific settings. Set `type` to the framework
+you are configuring:
 
 {/* @skip-typecheck: mutually exclusive config fragments */}
 

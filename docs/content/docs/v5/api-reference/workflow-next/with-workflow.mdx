@@ -7,8 +7,6 @@ prerequisites:
   - /docs/getting-started/next
 ---
 
-Configures webpack/turbopack loaders to transform workflow code (`"use step"`/`"use workflow"` directives)
-
 ## Usage
 
 To enable `"use step"` and `"use workflow"` directives while developing locally or deploying to production, wrap your `nextConfig` with `withWorkflow`.
@@ -16,15 +14,12 @@ To enable `"use step"` and `"use workflow"` directives while developing locally 
 ```typescript title="next.config.ts" lineNumbers
 import { withWorkflow } from "workflow/next"; // [!code highlight]
 import type { NextConfig } from "next";
- 
+
 const nextConfig: NextConfig = {
   // … rest of your Next.js config
 };
 
-// not required but allows configuring workflow options
-const workflowConfig = {} 
-
-export default withWorkflow(nextConfig, workflowConfig); // [!code highlight]
+export default withWorkflow(nextConfig); // [!code highlight]
 ```
 
 <Callout type="warn">
@@ -82,11 +77,9 @@ Use the smallest directory that contains every workspace package imported by you
 
 ## Options
 
-Build and Next.js integration settings can be placed in
-[`workflow.config.ts`](/docs/foundations/configuration).
-
-`withWorkflow` also accepts an optional second argument. Values passed there
-take precedence over environment variables and `workflow.config.ts`.
+Use [`workflow.config.ts`](/docs/foundations/configuration) for shared build and
+Next.js settings. The optional second argument to `withWorkflow` overrides
+environment variables and `workflow.config.ts`.
 
 ```typescript title="next.config.ts" lineNumbers
 import type { NextConfig } from "next";
@@ -106,7 +99,7 @@ export default withWorkflow(nextConfig, {
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `workflows.local.port` | `number` | — | Sets the local queue URL to `http://localhost:<port>`, overriding local URL environment variables. Has no effect when deployed to Vercel. |
+| `workflows.local.port` | `number` | — | Sets the local Workflow server port. Has no effect when deployed to Vercel. |
 | `workflows.sourcemap` | `boolean \| 'inline' \| 'linked' \| 'external' \| 'both'` | `'inline'` (dev) / `false` (prod) | Controls source maps on generated workflow bundles. See [Source maps](#source-maps) below. |
 
 ### Source maps
@@ -138,11 +131,10 @@ The `workflows.local` options only affect local development. When deployed to Ve
 
 ## Exporting a Function
 
-
 If you are exporting a function in your `next.config` you will need to ensure you call the function returned from `withWorkflow`.
 
 ```typescript title="next.config.ts" lineNumbers
-import { NextConfig } from "next";
+import type { NextConfig } from "next";
 import { withWorkflow } from "workflow/next";
 import createNextIntlPlugin from "next-intl/plugin";
 
