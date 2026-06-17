@@ -1,9 +1,5 @@
 import { getQueueTopicPrefix } from '@workflow/world';
 
-function resolveQueueNamespace(namespace: string | undefined) {
-  return namespace ?? process.env.WORKFLOW_QUEUE_NAMESPACE;
-}
-
 /**
  * Creates a queue trigger configuration for the workflow handler.
  * Handles both workflow orchestration and step execution on the same route.
@@ -22,7 +18,7 @@ function resolveQueueNamespace(namespace: string | undefined) {
  * createWorkflowQueueTrigger('custom')
  */
 export function createWorkflowQueueTrigger(namespace?: string) {
-  const resolvedNamespace = resolveQueueNamespace(namespace);
+  const resolvedNamespace = namespace ?? process.env.WORKFLOW_QUEUE_NAMESPACE;
 
   return {
     type: 'queue/v2beta' as const,

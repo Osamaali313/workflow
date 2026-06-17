@@ -8,35 +8,22 @@ import type { LoadedWorkflowConfig } from '@workflow/config/load';
 import type { Nitro } from 'nitro/types';
 import { join, resolve } from 'pathe';
 
-/**
- * Forward string entries from Nitro's `externals.external` config to the
- * workflow builder's esbuild `external` option. RegExp and function entries
- * are skipped since esbuild's `external` only supports literal strings.
- *
- * Note: `externals.external` is on Nitro v2's options shape — v3 dropped it
- * in favour of `noExternals`. Reading it through a v2-shaped view lets us
- * still pick it up on v2 setups; on v3 the chained optional access just
- * returns undefined.
- */
 type NitroV2ExternalsOptions = { externals?: { external?: unknown[] } };
-function getNitroStringExternals(nitro: Nitro): string[] {
-  const external = (nitro.options as NitroV2ExternalsOptions).externals
-    ?.external;
-  return (
-    external?.filter((entry): entry is string => typeof entry === 'string') ??
-    []
-  );
-}
 
 function createNitroBuilderConfig(
   nitro: Nitro,
   loadedConfig: LoadedWorkflowConfig
 ) {
   const build = loadedConfig.config.build;
+  // Nitro v3 dropped `externals.external`, so this v2-shaped read is empty.
+  const nitroExternals =
+    (nitro.options as NitroV2ExternalsOptions).externals?.external ?? [];
   const externalPackages = [
     ...new Set([
       ...(build?.externalPackages ?? []),
-      ...getNitroStringExternals(nitro),
+      ...nitroExternals.filter(
+        (entry): entry is string => typeof entry === 'string'
+      ),
     ]),
   ];
 
