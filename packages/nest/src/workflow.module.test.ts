@@ -22,10 +22,7 @@ describe('WorkflowModule', () => {
     writeFileSync(
       join(project, 'workflow.config.ts'),
       `export default {
-  world: {
-    type: 'world-provider',
-    create: () => { throw new Error('must stay lazy'); }
-  },
+  world: () => { throw new Error('must stay lazy'); },
   build: { dirs: ['src/jobs'], sourcemap: false },
   integration: { type: 'nest', outDir: '.generated/workflow' }
 };`

@@ -1,9 +1,5 @@
-import type { Storage, World, WorldProvider } from '@workflow/world';
-import {
-  defineWorldProvider,
-  reenqueueActiveRuns,
-  SPEC_VERSION_CURRENT,
-} from '@workflow/world';
+import type { Storage, World } from '@workflow/world';
+import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
 import { Pool } from 'pg';
 import type { PostgresWorldConfig } from './config.js';
 import { createClient, type Drizzle } from './drizzle/index.js';
@@ -28,15 +24,6 @@ function createStorage(drizzle: Drizzle): Storage {
 function getDefaultMaxPoolSize(): number | undefined {
   const parsed = parseInt(
     process.env.WORKFLOW_POSTGRES_MAX_POOL_SIZE || '',
-    10
-  );
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function getQueueConcurrencyFromEnv(): number | undefined {
-  const parsed = parseInt(
-    process.env.WORKFLOW_POSTGRES_WORKER_CONCURRENCY || '',
     10
   );
 
@@ -89,40 +76,6 @@ export function createWorld(
       }
     },
   };
-}
-
-type PostgresConnectionConfig = Extract<
-  PostgresWorldConfig,
-  { connectionString: string }
->;
-
-export type PostgresWorldProviderConfig = Pick<
-  PostgresConnectionConfig,
-  'jobPrefix' | 'queueConcurrency' | 'maxPoolSize' | 'streamFlushIntervalMs'
-> & {
-  connectionString?: string | (() => string);
-};
-
-/** Creates a PostgreSQL provider for workflow.config.ts. */
-export function postgresWorld(
-  config: PostgresWorldProviderConfig = {}
-): WorldProvider {
-  return defineWorldProvider(() => {
-    const connectionString =
-      process.env.WORKFLOW_POSTGRES_URL ??
-      (typeof config.connectionString === 'function'
-        ? config.connectionString()
-        : config.connectionString);
-
-    return createWorld({
-      connectionString:
-        connectionString ?? 'postgres://world:world@localhost:5432/world',
-      jobPrefix: process.env.WORKFLOW_POSTGRES_JOB_PREFIX ?? config.jobPrefix,
-      queueConcurrency: getQueueConcurrencyFromEnv() ?? config.queueConcurrency,
-      maxPoolSize: getDefaultMaxPoolSize() ?? config.maxPoolSize,
-      streamFlushIntervalMs: config.streamFlushIntervalMs,
-    });
-  });
 }
 
 // Re-export schema for users who want to extend or inspect the database schema

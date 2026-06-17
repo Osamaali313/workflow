@@ -5,13 +5,11 @@ Typed, shared configuration for Workflow SDK.
 Import it through `workflow/config`:
 
 ```ts
-import { defineConfig } from 'workflow/config';
-import { postgresWorld } from '@workflow/world-postgres';
+import type { WorkflowConfig } from 'workflow/config';
+import { createWorld } from '@workflow/world-postgres';
 
-export default defineConfig({
-  world: postgresWorld({
-    connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
-  }),
+const config: WorkflowConfig = {
+  world: createWorld,
   build: {
     dirs: ['workflows'],
     sourcemap: false,
@@ -20,8 +18,10 @@ export default defineConfig({
     type: 'next',
     lazyDiscovery: true,
   },
-});
+};
+
+export default config;
 ```
 
-See the [configuration guide](https://workflow-sdk.dev/docs/foundations/configuration)
+See the [configuration guide](https://workflow-sdk.dev/v5/docs/foundations/configuration)
 for the available settings.

@@ -14,13 +14,11 @@ related:
 Use `workflow.config.ts` to configure Workflow SDK:
 
 ```typescript title="workflow.config.ts" lineNumbers
-import { defineConfig } from "workflow/config";
-import { postgresWorld } from "@workflow/world-postgres";
+import type { WorkflowConfig } from "workflow/config";
+import { createWorld } from "@workflow/world-postgres";
 
-export default defineConfig({
-  world: postgresWorld({
-    connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
-  }),
+const config: WorkflowConfig = {
+  world: createWorld,
   build: {
     dirs: ["workflows"],
     sourcemap: false,
@@ -29,7 +27,9 @@ export default defineConfig({
     type: "next",
     lazyDiscovery: true,
   },
-});
+};
+
+export default config;
 ```
 
 <Callout type="info">
@@ -40,9 +40,8 @@ export default defineConfig({
 
 ## Config File
 
-Default-export a static object. `defineConfig()` provides type checking. In a
-monorepo, place the file in the application directory; the nearest config is
-used.
+Default-export a `WorkflowConfig` object. In a monorepo, place the file in the
+application directory; the nearest config is used.
 
 ## Precedence
 
@@ -53,55 +52,37 @@ From highest to lowest priority:
 3. `workflow.config.ts`
 4. Built-in defaults
 
-## World Providers
+## World
 
-The `world` field accepts a typed `WorldProvider`:
-
-```typescript
-import { localWorld } from "@workflow/world-local";
-import { postgresWorld } from "@workflow/world-postgres";
-import { vercelWorld } from "@workflow/world-vercel";
-```
-
-World packages can expose their own typed helpers:
-
-{/* @skip-typecheck: conceptual custom provider package example */}
-
-```typescript
-import { defineWorldProvider } from "@workflow/world";
-
-export function hybridWorld(options: HybridOptions) {
-  return defineWorldProvider(() => createHybridWorld(options));
-}
-```
+`world` is a zero-argument function that creates a World. It runs when the
+application first needs the World, not when the config is loaded during a
+build. Pass a World constructor directly, or wrap it to provide options.
 
 ## Different Worlds by Environment
 
-Choose a World inside the provider factory based on the runtime environment:
+Choose a World inside the factory based on the runtime environment:
 
 ```typescript title="workflow.config.ts" lineNumbers
-import { defineConfig } from "workflow/config";
-import { defineWorldProvider } from "@workflow/world";
+import type { WorkflowConfig } from "workflow/config";
 import { createLocalWorld } from "@workflow/world-local";
-import { createVercelWorld } from "@workflow/world-vercel";
+import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
 
-const world = defineWorldProvider(() => {
-  switch (process.env.NODE_ENV) {
-    case "production":
-      return createVercelWorld();
-    case "development":
-    case "test":
-      return createLocalWorld();
-    default:
-      throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
-  }
-});
+const config: WorkflowConfig = {
+  world: () => {
+    switch (process.env.NODE_ENV) {
+      case "production":
+        return createPostgresWorld();
+      case "development":
+      case "test":
+        return createLocalWorld();
+      default:
+        throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
+    }
+  },
+};
 
-export default defineConfig({ world });
+export default config;
 ```
-
-The factory runs when the application first needs the World. Builds load the
-provider definition without creating either backend.
 
 ## Integration Settings
 

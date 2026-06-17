@@ -49,6 +49,18 @@ describe('loadWorkflowConfig', () => {
     });
   });
 
+  it('loads a World factory without calling it', async () => {
+    const project = createProject({
+      'workflow.config.ts': `export default {
+        world: () => { throw new Error('must stay lazy'); }
+      };`,
+    });
+
+    const loaded = await loadWorkflowConfig({ cwd: project });
+
+    expect(loaded.config.world).toBeTypeOf('function');
+  });
+
   it('rejects multiple config files in one directory', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['typescript'] } };`,
@@ -86,7 +98,7 @@ describe('loadWorkflowConfig', () => {
     ).rejects.toThrow('configures "nest" but was loaded by "next"');
   });
 
-  it('rejects config functions and unknown keys', async () => {
+  it('rejects top-level config functions and unknown keys', async () => {
     const project = createProject({
       'workflow.config.ts': `export default () => ({ build: { dirs: ['workflows'] } });`,
     });

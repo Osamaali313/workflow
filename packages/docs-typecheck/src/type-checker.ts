@@ -70,6 +70,7 @@ const compilerOptions: ts.CompilerOptions = {
     // have "require" conditions that TS picks up incorrectly with Bundler resolution.
     workflow: [path.join(repoRoot, 'packages/workflow/dist/index')],
     'workflow/api': [path.join(repoRoot, 'packages/workflow/dist/api')],
+    'workflow/config': [path.join(repoRoot, 'packages/workflow/dist/config')],
     'workflow/errors': [
       path.join(repoRoot, 'packages/workflow/dist/internal/errors'),
     ],
@@ -100,6 +101,15 @@ const compilerOptions: ts.CompilerOptions = {
     '@workflow/serde': [path.join(repoRoot, 'packages/serde/dist/index')],
     '@workflow/vitest': [path.join(repoRoot, 'packages/vitest/dist/index')],
     '@workflow/world': [path.join(repoRoot, 'packages/world/dist/index')],
+    '@workflow/world-local': [
+      path.join(repoRoot, 'packages/world-local/dist/index'),
+    ],
+    '@workflow/world-postgres': [
+      path.join(repoRoot, 'packages/world-postgres/dist/index'),
+    ],
+    '@workflow/world-vercel': [
+      path.join(repoRoot, 'packages/world-vercel/dist/index'),
+    ],
     // Third-party deps available in docs-typecheck/node_modules
     zod: [path.join(__dirname, '../node_modules/zod')],
     ai: [path.join(__dirname, '../node_modules/ai')],

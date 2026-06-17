@@ -1,6 +1,5 @@
 import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
 import type { World } from '@workflow/world';
-import { defineWorldProvider } from '@workflow/world';
 import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { closeWorld, getWorld, getWorldHandlers } from './world.js';
@@ -32,7 +31,7 @@ describe('configured World', () => {
     const create = vi.fn(() => world);
 
     setRuntimeWorkflowConfig({
-      world: defineWorldProvider(create),
+      world: create,
       queue: { namespace: 'app' },
     });
 

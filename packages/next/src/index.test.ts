@@ -275,11 +275,8 @@ describe('withWorkflow builder config', () => {
     process.chdir(projectDir);
     writeFile(
       join(projectDir, 'workflow.config.ts'),
-      `const world = {
-  type: 'world-provider',
-  create: () => {
-    throw new Error('World provider factory must not run during builds');
-  }
+      `const world = () => {
+  throw new Error('World factory must not run during builds');
 };
 
 export default {

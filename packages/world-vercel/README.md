@@ -8,15 +8,17 @@ Used by default for deployments on Vercel. Authentication and API endpoints are 
 
 ## workflow.config.ts
 
-Use `vercelWorld()` to select the Vercel backend explicitly:
+Use `createVercelWorld()` to select the Vercel backend explicitly:
 
 ```ts
-import { defineConfig } from 'workflow/config';
-import { vercelWorld } from '@workflow/world-vercel';
+import type { WorkflowConfig } from 'workflow/config';
+import { createVercelWorld } from '@workflow/world-vercel';
 
-export default defineConfig({
-  world: vercelWorld(),
-});
+const config: WorkflowConfig = {
+  world: createVercelWorld,
+};
+
+export default config;
 ```
 
 ## Custom dispatcher

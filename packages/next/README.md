@@ -6,17 +6,19 @@ Shared build, World, queue, and Next-specific settings can live in
 `workflow.config.ts`:
 
 ```ts
-import { defineConfig } from 'workflow/config';
-import { localWorld } from '@workflow/world-local';
+import type { WorkflowConfig } from 'workflow/config';
+import { createLocalWorld } from '@workflow/world-local';
 
-export default defineConfig({
-  world: localWorld(),
+const config: WorkflowConfig = {
+  world: createLocalWorld,
   build: { sourcemap: false },
   integration: {
     type: 'next',
     lazyDiscovery: true,
   },
-});
+};
+
+export default config;
 ```
 
 Wrap `next.config.ts` with `withWorkflow()` to activate directive transforms.

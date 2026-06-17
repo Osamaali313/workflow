@@ -146,7 +146,7 @@ async function resolveWorld(): Promise<ResolvedWorld> {
   if (config.world) {
     return {
       type: 'configured',
-      world: await config.world.create(),
+      world: await config.world(),
     };
   }
 
@@ -170,9 +170,9 @@ export const createWorld = async (): Promise<World> => {
 export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
 
 /**
- * Queue handlers and regular runtime calls share one managed World. Provider
- * factories are never called by config loading or the build integrations;
- * this path is reached only when host runtime code asks for a handler.
+ * Queue handlers and regular runtime calls share one managed World. The World
+ * factory is never called by config loading or the build integrations; this
+ * path is reached only when host runtime code asks for a handler.
  */
 export const getWorldHandlers = async (): Promise<WorldHandlers> => {
   const world = await getWorld();

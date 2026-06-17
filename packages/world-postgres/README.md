@@ -63,23 +63,23 @@ const worldFromPool = createWorld({ pool });
 
 ### workflow.config.ts
 
-Use `postgresWorld()` in `workflow.config.ts`:
+Use `createWorld()` in `workflow.config.ts`:
 
 ```typescript
-import { defineConfig } from 'workflow/config';
-import { postgresWorld } from '@workflow/world-postgres';
+import type { WorkflowConfig } from 'workflow/config';
+import { createWorld } from '@workflow/world-postgres';
 
-export default defineConfig({
-  world: postgresWorld({
-    connectionString: () => process.env.WORKFLOW_POSTGRES_URL!,
+const config: WorkflowConfig = {
+  world: () => createWorld({
+    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
     jobPrefix: 'myapp_',
     queueConcurrency: 50,
     maxPoolSize: 52,
   }),
-});
-```
+};
 
-Environment variables take precedence over values passed to `postgresWorld()`.
+export default config;
+```
 
 ## Configuration Options
 

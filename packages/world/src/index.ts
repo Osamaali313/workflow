@@ -24,8 +24,6 @@ export {
 export type * from './hooks.js';
 export { HookSchema } from './hooks.js';
 export type * from './interfaces.js';
-export type * from './provider.js';
-export { defineWorldProvider } from './provider.js';
 export type * from './queue.js';
 export {
   getQueuePrefixKind,

@@ -1,12 +1,8 @@
 import { promises as fs } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
-import type { QueuePrefix, World, WorldProvider } from '@workflow/world';
-import {
-  defineWorldProvider,
-  reenqueueActiveRuns,
-  SPEC_VERSION_CURRENT,
-} from '@workflow/world';
+import type { QueuePrefix, World } from '@workflow/world';
+import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
 import type { Config } from './config.js';
 import { config } from './config.js';
 import {
@@ -24,7 +20,6 @@ import { hashToken, hookRecoveryMarkerPath } from './storage/helpers.js';
 import { createStorage } from './storage.js';
 import { createStreamer } from './streamer.js';
 
-export type { Config as LocalWorldConfig } from './config.js';
 // Re-export init types and utilities for consumers
 export {
   DataDirAccessError,
@@ -34,6 +29,7 @@ export {
   type ParsedVersion,
   parseVersion,
 } from './init.js';
+
 export type { DirectHandler } from './queue.js';
 
 export type LocalWorld = World & {
@@ -175,19 +171,4 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
       }
     },
   };
-}
-
-/** Creates a local provider for workflow.config.ts. */
-export function localWorld(args: Partial<Config> = {}): WorldProvider {
-  return defineWorldProvider(() =>
-    createLocalWorld({
-      ...args,
-      dataDir: process.env.WORKFLOW_LOCAL_DATA_DIR ?? args.dataDir,
-      baseUrl:
-        process.env.WORKFLOW_LOCAL_BASE_URL ??
-        (process.env.PORT
-          ? `http://localhost:${process.env.PORT}`
-          : args.baseUrl),
-    })
-  );
 }

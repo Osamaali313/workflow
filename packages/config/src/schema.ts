@@ -1,6 +1,10 @@
-import { WorldProviderSchema } from '@workflow/world/provider.js';
+import type { World } from '@workflow/world';
 import { QueueNamespaceSchema } from '@workflow/world/queue.js';
 import { z } from 'zod/v4';
+
+const worldSchema = z.custom<() => World | Promise<World>>(
+  (value) => typeof value === 'function'
+);
 
 const sourcemapSchema = z.union([
   z.boolean(),
@@ -34,7 +38,7 @@ const integrationSchema = z.discriminatedUnion('type', [
 ]);
 
 export const WorkflowConfigSchema = z.strictObject({
-  world: WorldProviderSchema.optional(),
+  world: worldSchema.optional(),
   build: z
     .strictObject({
       dirs: z.array(z.string().min(1)).min(1).optional(),

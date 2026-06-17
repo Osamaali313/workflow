@@ -8,18 +8,18 @@ Used by default on `next dev` and `next start`.
 
 ## workflow.config.ts
 
-Use `localWorld()` in `workflow.config.ts`:
+Use `createLocalWorld()` in `workflow.config.ts`:
 
 ```ts
-import { defineConfig } from 'workflow/config';
-import { localWorld } from '@workflow/world-local';
+import type { WorkflowConfig } from 'workflow/config';
+import { createLocalWorld } from '@workflow/world-local';
 
-export default defineConfig({
-  world: localWorld({
+const config: WorkflowConfig = {
+  world: () => createLocalWorld({
     dataDir: '.workflow-data',
     port: 3000,
   }),
-});
-```
+};
 
-Environment variables take precedence over values in `workflow.config.ts`.
+export default config;
+```
