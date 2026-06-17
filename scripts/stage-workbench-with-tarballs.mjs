@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -248,32 +249,6 @@ function rewriteDependencySpecs(
   return { replacedWithTarballs, replacedCatalogEntries };
 }
 
-function applyTarballOverrides(packageJsonPath, tarballPathByPackageName) {
-  const packageJson = readJson(packageJsonPath);
-  const pnpmConfig =
-    packageJson.pnpm && typeof packageJson.pnpm === 'object'
-      ? packageJson.pnpm
-      : {};
-  const overrides =
-    pnpmConfig.overrides && typeof pnpmConfig.overrides === 'object'
-      ? pnpmConfig.overrides
-      : {};
-
-  let overridesApplied = 0;
-  for (const [packageName, tarballPath] of tarballPathByPackageName.entries()) {
-    overrides[packageName] = `file:${tarballPath}`;
-    overridesApplied += 1;
-  }
-
-  packageJson.pnpm = {
-    ...pnpmConfig,
-    overrides,
-  };
-
-  writeJson(packageJsonPath, packageJson);
-  return overridesApplied;
-}
-
 function main() {
   const args = process.argv.slice(2).filter((arg) => arg !== '--');
   const [workbenchArg] = args;
@@ -351,16 +326,31 @@ function main() {
       tarballPathByPackageName,
       catalog
     );
-  const overridesApplied = applyTarballOverrides(
-    stagedPackageJsonPath,
-    tarballPathByPackageName
+
+  const packageJson = readJson(stagedPackageJsonPath);
+  const { packageManager } = readJson(path.join(repoRoot, 'package.json'));
+  assert(typeof packageManager === 'string');
+  packageJson.packageManager = packageManager;
+  writeJson(stagedPackageJsonPath, packageJson);
+
+  fs.writeFileSync(
+    path.join(stagedWorkbenchDir, 'pnpm-workspace.yaml'),
+    [
+      'overrides:',
+      ...Array.from(
+        tarballPathByPackageName,
+        ([packageName, tarballPath]) =>
+          `  ${JSON.stringify(packageName)}: ${JSON.stringify(`file:${tarballPath}`)}`
+      ),
+      '',
+    ].join('\n')
   );
 
   console.log(
     `Rewrote ${replacedWithTarballs.length} monorepo dependencies to tarballs and ${replacedCatalogEntries.length} catalog dependencies to versions`
   );
   console.log(
-    `Applied ${overridesApplied} pnpm tarball overrides for transitive monorepo packages`
+    `Applied ${tarballPathByPackageName.size} pnpm tarball overrides for transitive monorepo packages`
   );
 
   console.log(`Installing dependencies in ${stagedWorkbenchDir}`);
