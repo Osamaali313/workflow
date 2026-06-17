@@ -49,8 +49,8 @@ used.
 From highest to lowest priority:
 
 1. Explicit CLI flags or framework options
-2. `workflow.config.ts`
-3. Environment variables
+2. Environment variables
+3. `workflow.config.ts`
 4. Built-in defaults
 
 ## World Providers
@@ -90,6 +90,38 @@ postgresWorld({
 
 Provider fields that accept a callback read its value when the World is
 created.
+
+## Different Worlds by Environment
+
+Choose a World inside the provider factory when one build must run against
+different infrastructure in different environments:
+
+```typescript title="workflow.config.ts" lineNumbers
+import { defineConfig } from "workflow/config";
+import { defineWorldProvider } from "@workflow/world";
+import { createLocalWorld } from "@workflow/world-local";
+import { createVercelWorld } from "@workflow/world-vercel";
+
+const world = defineWorldProvider({
+  id: "app-world",
+  create() {
+    switch (process.env.NODE_ENV) {
+      case "production":
+        return createVercelWorld();
+      case "development":
+      case "test":
+        return createLocalWorld();
+      default:
+        throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
+    }
+  },
+});
+
+export default defineConfig({ world });
+```
+
+The factory runs when the application first needs the World. Builds load the
+provider definition without creating either backend.
 
 ## Integration Settings
 

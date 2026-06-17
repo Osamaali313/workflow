@@ -8,6 +8,8 @@ It also defines the `WorldProvider` contract used by `workflow.config.ts`.
 
 Custom World packages can expose a typed helper with `defineWorldProvider()`:
 
+<!-- @skip-typecheck: conceptual custom provider package example -->
+
 ```ts
 import { defineWorldProvider } from '@workflow/world';
 

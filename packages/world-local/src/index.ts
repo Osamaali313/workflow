@@ -181,6 +181,15 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
 export function localWorld(args?: Partial<Config>): WorldProvider {
   return defineWorldProvider({
     id: '@workflow/world-local',
-    create: () => createLocalWorld(args),
+    create: () =>
+      createLocalWorld({
+        ...args,
+        dataDir: process.env.WORKFLOW_LOCAL_DATA_DIR ?? args?.dataDir,
+        baseUrl:
+          process.env.WORKFLOW_LOCAL_BASE_URL ??
+          (process.env.PORT
+            ? `http://localhost:${process.env.PORT}`
+            : args?.baseUrl),
+      }),
   });
 }

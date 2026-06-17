@@ -14,6 +14,7 @@ import {
 } from './world.js';
 
 const originalTargetWorld = process.env.WORKFLOW_TARGET_WORLD;
+const originalNodeEnv = process.env.NODE_ENV;
 
 function mockWorld(overrides: Partial<World> = {}): World {
   return {
@@ -32,6 +33,11 @@ afterEach(async () => {
     delete process.env.WORKFLOW_TARGET_WORLD;
   } else {
     process.env.WORKFLOW_TARGET_WORLD = originalTargetWorld;
+  }
+  if (originalNodeEnv === undefined) {
+    delete process.env.NODE_ENV;
+  } else {
+    process.env.NODE_ENV = originalNodeEnv;
   }
 });
 
@@ -113,20 +119,48 @@ describe('configured World lifecycle', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('prefers configured providers over WORKFLOW_TARGET_WORLD', async () => {
+  it('prefers WORKFLOW_TARGET_WORLD over configured providers', async () => {
     process.env.WORKFLOW_TARGET_WORLD = 'local';
-    const world = mockWorld();
+    const create = vi.fn(() => mockWorld());
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
         id: 'test-world',
-        create: () => world,
+        create,
       }),
     });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(getWorld()).resolves.toBe(world);
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining('WORKFLOW_TARGET_WORLD="local" is ignored')
-    );
+    await getWorld();
+
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('selects a World when the provider factory runs', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    const developmentWorld = mockWorld();
+    const productionWorld = mockWorld();
+    const create = vi.fn(() => {
+      switch (process.env.NODE_ENV) {
+        case 'development':
+          return developmentWorld;
+        case 'production':
+          return productionWorld;
+        default:
+          throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
+      }
+    });
+    setRuntimeWorkflowConfig({
+      world: defineWorldProvider({
+        id: 'environment-world',
+        create,
+      }),
+    });
+
+    process.env.NODE_ENV = 'development';
+    await expect(getWorld()).resolves.toBe(developmentWorld);
+    await closeWorld();
+
+    process.env.NODE_ENV = 'production';
+    await expect(getWorld()).resolves.toBe(productionWorld);
+    expect(create).toHaveBeenCalledTimes(2);
   });
 });

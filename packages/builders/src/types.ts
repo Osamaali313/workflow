@@ -86,7 +86,8 @@ interface BaseWorkflowConfig {
    * them out of the function bundle.
    *
    * Can also be set via the `WORKFLOW_SOURCEMAP` environment variable;
-   * config wins over env var, env var wins over the default.
+   * an explicit builder option wins over the env var, which wins over
+   * workflow.config.ts and the default.
    */
   sourcemap?: SourcemapMode;
 }

@@ -21,3 +21,5 @@ export default defineConfig({
   }),
 });
 ```
+
+Environment variables take precedence over values in `workflow.config.ts`.

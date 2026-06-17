@@ -40,10 +40,17 @@ function getDefaultMaxPoolSize(): number | undefined {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-function getDefaultQueueConcurrency(): number {
-  return (
-    parseInt(process.env.WORKFLOW_POSTGRES_WORKER_CONCURRENCY || '50', 10) || 50
+function getQueueConcurrencyFromEnv(): number | undefined {
+  const parsed = parseInt(
+    process.env.WORKFLOW_POSTGRES_WORKER_CONCURRENCY || '',
+    10
   );
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function getDefaultQueueConcurrency(): number {
+  return getQueueConcurrencyFromEnv() ?? 50;
 }
 
 export function createWorld(
@@ -111,13 +118,14 @@ export function postgresWorld(
     create: () =>
       createWorld({
         connectionString:
-          config.connectionString === undefined
-            ? process.env.WORKFLOW_POSTGRES_URL ||
-              'postgres://world:world@localhost:5432/world'
-            : resolveProviderValue(config.connectionString),
-        jobPrefix: config.jobPrefix,
-        queueConcurrency: config.queueConcurrency,
-        maxPoolSize: config.maxPoolSize,
+          process.env.WORKFLOW_POSTGRES_URL ||
+          (config.connectionString === undefined
+            ? 'postgres://world:world@localhost:5432/world'
+            : resolveProviderValue(config.connectionString)),
+        jobPrefix: process.env.WORKFLOW_POSTGRES_JOB_PREFIX ?? config.jobPrefix,
+        queueConcurrency:
+          getQueueConcurrencyFromEnv() ?? config.queueConcurrency,
+        maxPoolSize: getDefaultMaxPoolSize() ?? config.maxPoolSize,
         streamFlushIntervalMs: config.streamFlushIntervalMs,
       }),
   });

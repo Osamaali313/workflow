@@ -20,5 +20,5 @@ export default defineConfig({
 ```
 
 Wrap `next.config.ts` with `withWorkflow()` to activate directive transforms.
-Values passed in its optional second argument take precedence over
-`workflow.config.ts`.
+Values passed in its optional second argument take precedence over environment
+variables and `workflow.config.ts`.

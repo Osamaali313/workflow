@@ -1,11 +1,40 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   getQueuePrefixKind,
   getQueueTopicPrefix,
   parseQueueName,
   QueuePrefix,
+  resolveQueueNamespace,
+  setWorkflowQueueNamespace,
   ValidQueueName,
 } from './queue.js';
+
+const originalQueueNamespace = process.env.WORKFLOW_QUEUE_NAMESPACE;
+
+afterEach(() => {
+  setWorkflowQueueNamespace(undefined);
+  if (originalQueueNamespace === undefined) {
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
+  } else {
+    process.env.WORKFLOW_QUEUE_NAMESPACE = originalQueueNamespace;
+  }
+});
+
+describe('resolveQueueNamespace', () => {
+  it('uses explicit, environment, config, then default precedence', () => {
+    setWorkflowQueueNamespace('configured');
+    process.env.WORKFLOW_QUEUE_NAMESPACE = 'environment';
+
+    expect(resolveQueueNamespace('explicit')).toBe('explicit');
+    expect(resolveQueueNamespace()).toBe('environment');
+
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
+    expect(resolveQueueNamespace()).toBe('configured');
+
+    setWorkflowQueueNamespace(undefined);
+    expect(resolveQueueNamespace()).toBeUndefined();
+  });
+});
 
 describe('getQueueTopicPrefix', () => {
   it('returns default workflow prefix without namespace', () => {

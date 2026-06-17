@@ -164,13 +164,14 @@ async function resolveWorld(): Promise<ResolvedWorld> {
   const config = await loadRuntimeWorkflowConfig();
   setWorkflowQueueNamespace(config.queue?.namespace);
 
-  if (config.world) {
-    if (process.env.WORKFLOW_TARGET_WORLD) {
-      console.warn(
-        `[workflow] The Workflow config provides World provider "${config.world.id}", so WORKFLOW_TARGET_WORLD="${process.env.WORKFLOW_TARGET_WORLD}" is ignored.`
-      );
-    }
+  if (process.env.WORKFLOW_TARGET_WORLD) {
+    return {
+      type: 'legacy',
+      world: await createLegacyWorld(),
+    };
+  }
 
+  if (config.world) {
     return {
       type: 'configured',
       world: await config.world.create(),
@@ -184,8 +185,8 @@ async function resolveWorld(): Promise<ResolvedWorld> {
 }
 
 /**
- * Create a new World instance from workflow.config.ts when configured, or
- * from the legacy WORKFLOW_TARGET_WORLD environment selection.
+ * Create a new World instance from WORKFLOW_TARGET_WORLD when set, then
+ * workflow.config.ts, then the environment-aware default.
  *
  * This function does not call World.start(). Use getWorld() for the managed
  * runtime singleton.

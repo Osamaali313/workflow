@@ -219,6 +219,47 @@ describe('withWorkflow builder config', () => {
     expect(webpackConfig?.externals).toEqual([{ react: 'commonjs react' }]);
   });
 
+  it('lets an explicit local port override PORT', async () => {
+    process.env.PORT = '3000';
+
+    const config = withWorkflow(
+      {},
+      {
+        workflows: {
+          local: { port: 4000 },
+        },
+      }
+    );
+    await config('phase-production-build', { defaultConfig: {} });
+
+    expect(process.env.PORT).toBe('4000');
+  });
+
+  it('prefers environment variables over workflow.config.ts', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
+    process.chdir(projectDir);
+    mkdirSync(join(projectDir, '.git'));
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `export default {
+  integration: {
+    type: 'next',
+    local: { port: 4321 }
+  }
+};`
+    );
+    process.env.PORT = '9876';
+
+    try {
+      const config = withWorkflow({});
+      await config('phase-production-build', { defaultConfig: {} });
+
+      expect(process.env.PORT).toBe('9876');
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
   it('applies workflow.config.ts to the Next builder and runtime binding', async () => {
     const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
     process.chdir(projectDir);

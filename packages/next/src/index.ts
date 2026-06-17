@@ -387,9 +387,13 @@ export function withWorkflow(
         process.env.WORKFLOW_TARGET_WORLD = 'local';
         process.env.WORKFLOW_LOCAL_DATA_DIR = '.next/workflow-data';
       }
-      const localPort = workflows?.local?.port ?? nextIntegration?.local?.port;
-      if (localPort !== undefined) {
-        process.env.PORT = localPort.toString();
+      if (workflows?.local?.port !== undefined) {
+        process.env.PORT = workflows.local.port.toString();
+      } else if (
+        process.env.PORT === undefined &&
+        nextIntegration?.local?.port !== undefined
+      ) {
+        process.env.PORT = nextIntegration.local.port.toString();
       }
     } else if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
       process.env.WORKFLOW_TARGET_WORLD = 'vercel';

@@ -40,7 +40,7 @@ const queueGlobals = globalThis as typeof globalThis & {
 
 /**
  * Sets the process-local queue namespace resolved from workflow.config.ts.
- * Explicit function arguments still take precedence.
+ * Explicit function arguments and WORKFLOW_QUEUE_NAMESPACE take precedence.
  */
 export function setWorkflowQueueNamespace(namespace: string | undefined): void {
   queueGlobals[WorkflowQueueNamespace] = namespace;
@@ -48,13 +48,13 @@ export function setWorkflowQueueNamespace(namespace: string | undefined): void {
 
 /**
  * Resolves the active queue namespace from an explicit argument, the loaded
- * Workflow config, or the legacy WORKFLOW_QUEUE_NAMESPACE env var.
+ * WORKFLOW_QUEUE_NAMESPACE env var, or the loaded Workflow config.
  */
 export function resolveQueueNamespace(namespace?: string): string | undefined {
   return (
     namespace ??
-    queueGlobals[WorkflowQueueNamespace] ??
-    process.env.WORKFLOW_QUEUE_NAMESPACE
+    process.env.WORKFLOW_QUEUE_NAMESPACE ??
+    queueGlobals[WorkflowQueueNamespace]
   );
 }
 

@@ -241,7 +241,10 @@ export abstract class BaseBuilder {
   }
 
   protected get queueNamespace(): string | undefined {
-    return this.config.workflowConfig?.config.queue?.namespace;
+    return (
+      process.env.WORKFLOW_QUEUE_NAMESPACE ??
+      this.config.workflowConfig?.config.queue?.namespace
+    );
   }
 
   private get runtimeConfigPlugins(): esbuild.Plugin[] {
@@ -2125,13 +2128,14 @@ export const OPTIONS = handler;`;
 
   /**
    * Whether the manifest should be exposed as a public HTTP route.
-   * workflow.config.ts takes precedence over WORKFLOW_PUBLIC_MANIFEST.
+   * WORKFLOW_PUBLIC_MANIFEST takes precedence over workflow.config.ts.
    */
   protected get shouldExposePublicManifest(): boolean {
-    return (
-      this.config.workflowConfig?.config.build?.manifest?.public ??
-      process.env.WORKFLOW_PUBLIC_MANIFEST === '1'
-    );
+    if (process.env.WORKFLOW_PUBLIC_MANIFEST !== undefined) {
+      return process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
+    }
+
+    return this.config.workflowConfig?.config.build?.manifest?.public ?? false;
   }
 
   /**
@@ -2180,16 +2184,16 @@ export const OPTIONS = handler;`;
 
   /**
    * Resolve the effective source map mode for a given call site. Precedence:
-   * builder option > workflow.config.ts > WORKFLOW_SOURCEMAP > the call site's
+   * builder option > WORKFLOW_SOURCEMAP > workflow.config.ts > the call site's
    * default. Returned value is passed directly to esbuild's `sourcemap`
    * option.
    */
   protected resolveSourcemap(defaultMode: SourcemapMode): SourcemapMode {
     if (this.config.sourcemap !== undefined) return this.config.sourcemap;
-    const configMode = this.config.workflowConfig?.config.build?.sourcemap;
-    if (configMode !== undefined) return configMode;
     const envMode = parseSourcemapEnv(process.env.WORKFLOW_SOURCEMAP);
     if (envMode !== undefined) return envMode;
+    const configMode = this.config.workflowConfig?.config.build?.sourcemap;
+    if (configMode !== undefined) return configMode;
     return defaultMode;
   }
 

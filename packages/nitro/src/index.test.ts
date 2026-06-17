@@ -147,7 +147,6 @@ describe('@workflow/nitro workflow.config.ts', () => {
 
       expect(nitro.options.workflow).toMatchObject({
         dirs: ['server/jobs'],
-        sourcemap: false,
         typescriptPlugin: true,
         runtime: 'nodejs24.x',
       });
@@ -170,6 +169,55 @@ describe('@workflow/nitro workflow.config.ts', () => {
         )
       ).toBe(true);
     } finally {
+      rmSync(project, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers environment variables over workflow.config.ts', async () => {
+    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
+    mkdirSync(join(project, '.git'));
+    writeFileSync(
+      join(project, 'workflow.config.ts'),
+      `export default {
+  build: { manifest: { public: true } },
+  queue: { namespace: 'configured' }
+};`
+    );
+    const queueNamespace = process.env.WORKFLOW_QUEUE_NAMESPACE;
+    const publicManifest = process.env.WORKFLOW_PUBLIC_MANIFEST;
+    process.env.WORKFLOW_QUEUE_NAMESPACE = 'environment';
+    process.env.WORKFLOW_PUBLIC_MANIFEST = '0';
+
+    try {
+      const nitro = createNitroStub({
+        routing: true,
+        preset: 'vercel',
+        rootDir: project,
+      });
+
+      await nitroModule.setup(nitro);
+
+      expect(
+        nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
+          .experimentalTriggers[0].topic
+      ).toBe('__environment_wkf_workflow_*');
+      expect(
+        nitro.options.handlers.some(
+          (handler: { route: string }) =>
+            handler.route === '/.well-known/workflow/v1/manifest.json'
+        )
+      ).toBe(false);
+    } finally {
+      if (queueNamespace === undefined) {
+        delete process.env.WORKFLOW_QUEUE_NAMESPACE;
+      } else {
+        process.env.WORKFLOW_QUEUE_NAMESPACE = queueNamespace;
+      }
+      if (publicManifest === undefined) {
+        delete process.env.WORKFLOW_PUBLIC_MANIFEST;
+      } else {
+        process.env.WORKFLOW_PUBLIC_MANIFEST = publicManifest;
+      }
       rmSync(project, { recursive: true, force: true });
     }
   });

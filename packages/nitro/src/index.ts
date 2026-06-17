@@ -89,14 +89,14 @@ export default {
         nitro.options.workflow?.typescriptPlugin ??
         nitroIntegration?.typescriptPlugin,
       runtime: nitro.options.workflow?.runtime ?? nitroIntegration?.runtime,
-      sourcemap:
-        nitro.options.workflow?.sourcemap ?? workflowConfig.build?.sourcemap,
+      sourcemap: nitro.options.workflow?.sourcemap,
     };
     const publicManifest =
-      workflowConfig.build?.manifest?.public ??
-      process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
+      process.env.WORKFLOW_PUBLIC_MANIFEST === undefined
+        ? (workflowConfig.build?.manifest?.public ?? false)
+        : process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
     const workflowQueueTrigger = createWorkflowQueueTrigger(
-      workflowConfig.queue?.namespace
+      process.env.WORKFLOW_QUEUE_NAMESPACE ?? workflowConfig.queue?.namespace
     );
     const isVercelDeploy =
       !nitro.options.dev && nitro.options.preset === 'vercel';

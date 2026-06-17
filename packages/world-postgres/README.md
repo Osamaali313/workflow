@@ -79,6 +79,8 @@ export default defineConfig({
 });
 ```
 
+Environment variables take precedence over values passed to `postgresWorld()`.
+
 ## Configuration Options
 
 | Option             | Type      | Default                                                                                | Description                                                                                          |
