@@ -7,7 +7,6 @@ type WorldFactory = () => World | Promise<World>;
 
 export const WorldProviderSchema = z.strictObject({
   type: z.literal('world-provider'),
-  id: z.string().trim().min(1),
   create: z.custom<WorldFactory>((value) => typeof value === 'function'),
 });
 

@@ -15,7 +15,6 @@ import { defineWorldProvider } from '@workflow/world';
 
 export function hybridWorld(options: HybridOptions) {
   return defineWorldProvider({
-    id: '@acme/workflow-world',
     create: () => createHybridWorld(options),
   });
 }

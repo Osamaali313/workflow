@@ -399,16 +399,10 @@ export function withWorkflow(
       process.env.WORKFLOW_TARGET_WORLD = 'vercel';
     }
 
-    const configuredWorldPackage =
-      workflowConfig.world &&
-      isResolvablePackageSpecifier(workflowConfig.world.id)
-        ? workflowConfig.world.id
-        : undefined;
     nextConfig.serverExternalPackages = [
       ...new Set([
         ...(nextConfig.serverExternalPackages || []),
         ...(workflowConfig.build?.externalPackages || []),
-        ...(configuredWorldPackage ? [configuredWorldPackage] : []),
         // Keep the Vercel world and its native-prone dependencies external so
         // local builds do not try to parse @vercel/queue's keyring dependency
         // tree.
@@ -478,9 +472,15 @@ export function withWorkflow(
       )
         ? nextConfig.turbopack.resolveAlias
         : {};
+      const runtimeConfigRequest = relative(
+        nextConfig.turbopack.root ?? process.cwd(),
+        runtimeConfigPath
+      ).replaceAll('\\', '/');
       nextConfig.turbopack.resolveAlias = {
         ...existingResolveAlias,
-        '@workflow/config/runtime-binding': runtimeConfigPath,
+        '@workflow/config/runtime-binding': runtimeConfigRequest.startsWith('.')
+          ? runtimeConfigRequest
+          : `./${runtimeConfigRequest}`,
       };
 
       const tracedConfigPath = relative(

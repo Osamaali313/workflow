@@ -128,7 +128,6 @@ describe('loadWorkflowConfig', () => {
 
   it('accepts a typed inert WorldProvider', () => {
     const provider = defineWorldProvider({
-      id: 'test-world',
       create: () => ({}) as World,
     });
 

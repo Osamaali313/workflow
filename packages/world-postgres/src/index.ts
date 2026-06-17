@@ -114,7 +114,6 @@ export function postgresWorld(
   config: PostgresWorldProviderConfig = {}
 ): WorldProvider {
   return defineWorldProvider({
-    id: '@workflow/world-postgres',
     create: () =>
       createWorld({
         connectionString:

@@ -180,7 +180,6 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
 /** Creates a local provider for workflow.config.ts. */
 export function localWorld(args?: Partial<Config>): WorldProvider {
   return defineWorldProvider({
-    id: '@workflow/world-local',
     create: () =>
       createLocalWorld({
         ...args,

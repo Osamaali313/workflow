@@ -69,7 +69,6 @@ export function vercelWorld(
   config: VercelWorldProviderConfig = {}
 ): WorldProvider {
   return defineWorldProvider({
-    id: '@workflow/world-vercel',
     create: () =>
       createVercelWorld({
         ...config,

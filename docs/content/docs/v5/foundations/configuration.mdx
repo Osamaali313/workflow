@@ -72,7 +72,6 @@ import { defineWorldProvider } from "@workflow/world";
 
 export function hybridWorld(options: HybridOptions) {
   return defineWorldProvider({
-    id: "@acme/workflow-world",
     create: () => createHybridWorld(options),
   });
 }
@@ -103,7 +102,6 @@ import { createLocalWorld } from "@workflow/world-local";
 import { createVercelWorld } from "@workflow/world-vercel";
 
 const world = defineWorldProvider({
-  id: "app-world",
   create() {
     switch (process.env.NODE_ENV) {
       case "production":

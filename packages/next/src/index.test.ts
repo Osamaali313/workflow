@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -268,7 +268,6 @@ describe('withWorkflow builder config', () => {
       join(projectDir, 'workflow.config.ts'),
       `const world = {
   type: 'world-provider',
-  id: 'configured-world',
   create: () => {
     throw new Error('World provider factory must not run during builds');
   }
@@ -291,7 +290,8 @@ export default {
 };`
     );
     try {
-      const config = withWorkflow({});
+      const turbopackRoot = dirname(projectDir);
+      const config = withWorkflow({ turbopack: { root: turbopackRoot } });
       const resolvedConfig = await config('phase-production-build', {
         defaultConfig: {},
       });
@@ -319,14 +319,13 @@ export default {
       expect(builderConfigs[0]?.externalPackages).toContain(
         'configured-external'
       );
-      expect(resolvedConfig.serverExternalPackages).toContain(
-        'configured-world'
-      );
       expect(
         (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
           '@workflow/config/runtime-binding'
         ]
-      ).toBe(join(projectDir, 'workflow.config.ts'));
+      ).toBe(
+        `./${relative(turbopackRoot, join(projectDir, 'workflow.config.ts'))}`
+      );
       expect(resolvedConfig.outputFileTracingIncludes?.['/*']).toContain(
         'workflow.config.ts'
       );

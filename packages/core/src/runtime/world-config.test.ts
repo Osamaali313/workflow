@@ -50,7 +50,6 @@ describe('configured World lifecycle', () => {
     const create = vi.fn(async () => world);
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'test-world',
         create,
       }),
       queue: { namespace: 'myapp' },
@@ -76,7 +75,6 @@ describe('configured World lifecycle', () => {
     const start = vi.fn(async () => {});
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'test-world',
         create: () => mockWorld({ start }),
       }),
     });
@@ -95,7 +93,6 @@ describe('configured World lifecycle', () => {
       .mockResolvedValueOnce(world);
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'test-world',
         create,
       }),
     });
@@ -109,7 +106,6 @@ describe('configured World lifecycle', () => {
     const create = vi.fn(() => mockWorld());
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'test-world',
         create,
       }),
     });
@@ -124,7 +120,6 @@ describe('configured World lifecycle', () => {
     const create = vi.fn(() => mockWorld());
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'test-world',
         create,
       }),
     });
@@ -150,7 +145,6 @@ describe('configured World lifecycle', () => {
     });
     setRuntimeWorkflowConfig({
       world: defineWorldProvider({
-        id: 'environment-world',
         create,
       }),
     });
