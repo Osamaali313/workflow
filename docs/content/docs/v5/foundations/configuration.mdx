@@ -40,8 +40,9 @@ export default config;
 
 ## Config File
 
-Default-export a `WorkflowConfig` object. In a monorepo, place the file in the
-application directory; the nearest config is used.
+Default-export a `WorkflowConfig` object. Top-level config functions are not
+supported; keep runtime World selection inside `world`. In a monorepo, place
+the file in the application directory; the nearest config is used.
 
 ## Precedence
 
