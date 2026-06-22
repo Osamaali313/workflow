@@ -115,7 +115,11 @@ export async function loadWorkflowConfig(
 
   const runtimeDir = join(dirname(path), 'node_modules', '.cache', 'workflow');
   let world = config.world;
-  if (world?.startsWith('.') || (world && isAbsolute(world))) {
+  assert(
+    !world || !isAbsolute(world),
+    `World module must be a relative path or package specifier: ${world}`
+  );
+  if (world?.startsWith('.')) {
     const worldPath = resolve(dirname(path), world);
     assert(
       existsSync(worldPath) && statSync(worldPath).isFile(),

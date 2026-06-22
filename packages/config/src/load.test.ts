@@ -130,6 +130,20 @@ export default () => ({});
     );
   });
 
+  it('rejects absolute World paths', async () => {
+    const project = createProject({
+      'workflow.world.ts': `export default () => ({});`,
+    });
+    writeFileSync(
+      join(project, 'workflow.config.ts'),
+      `export default { world: ${JSON.stringify(join(project, 'workflow.world.ts'))} };`
+    );
+
+    await expect(loadWorkflowConfig({ cwd: project })).rejects.toThrow(
+      'World module must be a relative path or package specifier'
+    );
+  });
+
   it('rejects multiple config files in one directory', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['typescript'] } };`,

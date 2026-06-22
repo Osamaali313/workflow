@@ -186,29 +186,41 @@ export const getWorld = async (): Promise<World> => {
   if (globalSymbols[WorldCache]) {
     return globalSymbols[WorldCache];
   }
-  // Store the promise immediately to prevent race conditions with concurrent calls.
-  // Clear on rejection so subsequent calls can retry instead of caching the failure.
-  if (!globalSymbols[WorldCachePromise]) {
-    globalSymbols[WorldCachePromise] = resolveWorld()
-      .then(async (resolved) => {
-        switch (resolved.type) {
-          case 'configured':
+
+  let pendingWorld = globalSymbols[WorldCachePromise];
+  if (!pendingWorld) {
+    pendingWorld = resolveWorld().then(async (resolved) => {
+      switch (resolved.type) {
+        case 'configured':
+          try {
             await resolved.world.start?.();
-            return resolved.world;
-          case 'legacy':
-            return resolved.world;
-          default:
-            resolved satisfies never;
-            throw new Error('Unknown World resolution type');
-        }
-      })
-      .catch((err) => {
-        globalSymbols[WorldCachePromise] = undefined;
-        throw err;
-      });
+          } catch (error) {
+            await resolved.world.close?.();
+            throw error;
+          }
+          return resolved.world;
+        case 'legacy':
+          return resolved.world;
+        default:
+          resolved satisfies never;
+          throw new Error('Unknown World resolution type');
+      }
+    });
+    globalSymbols[WorldCachePromise] = pendingWorld;
   }
-  globalSymbols[WorldCache] = await globalSymbols[WorldCachePromise];
-  return globalSymbols[WorldCache];
+
+  try {
+    const world = await pendingWorld;
+    if (globalSymbols[WorldCachePromise] === pendingWorld) {
+      globalSymbols[WorldCache] = world;
+    }
+    return world;
+  } catch (error) {
+    if (globalSymbols[WorldCachePromise] === pendingWorld) {
+      globalSymbols[WorldCachePromise] = undefined;
+    }
+    throw error;
+  }
 };
 
 /**

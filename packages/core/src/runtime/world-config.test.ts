@@ -49,4 +49,59 @@ describe('configured World', () => {
     await closeWorld();
     expect(close).toHaveBeenCalledOnce();
   });
+
+  it('closes a World whose startup fails before retrying', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    const firstClose = vi.fn(async () => {});
+    const first = {
+      start: vi.fn().mockRejectedValue(new Error('startup failed')),
+      close: firstClose,
+    } as unknown as World;
+    const second = {
+      start: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+    } as unknown as World;
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+    setRuntimeWorkflowConfig({ world: create });
+
+    await expect(getWorld()).rejects.toThrow('startup failed');
+    expect(firstClose).toHaveBeenCalledOnce();
+    await expect(getWorld()).resolves.toBe(second);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not cache a World closed during startup', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    let finishStart!: () => void;
+    const starting = new Promise<void>((resolve) => {
+      finishStart = resolve;
+    });
+    const firstClose = vi.fn(async () => {});
+    const first = {
+      start: vi.fn(() => starting),
+      close: firstClose,
+    } as unknown as World;
+    const second = {
+      start: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+    } as unknown as World;
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+    setRuntimeWorkflowConfig({ world: create });
+
+    const pendingWorld = getWorld();
+    const closingWorld = closeWorld();
+    finishStart();
+
+    await expect(pendingWorld).resolves.toBe(first);
+    await closingWorld;
+    expect(firstClose).toHaveBeenCalledOnce();
+    await expect(getWorld()).resolves.toBe(second);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
 });

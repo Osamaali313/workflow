@@ -304,7 +304,7 @@ describe('withWorkflow builder config', () => {
         `./${relative(
           turbopackRoot,
           join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
-        )}`
+        ).replaceAll('\\', '/')}`
       );
     } finally {
       process.chdir(originalCwd);
