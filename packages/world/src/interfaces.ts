@@ -364,3 +364,5 @@ export interface World extends Queue, Streamer, Storage {
     context?: Record<string, unknown>
   ): Promise<Uint8Array | undefined>;
 }
+
+export type WorldProvider = () => World | Promise<World>;

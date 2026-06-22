@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -221,66 +221,19 @@ describe('withWorkflow builder config', () => {
     expect(webpackConfig?.externals).toEqual([{ react: 'commonjs react' }]);
   });
 
-  it('applies explicit local options before loading Next config', async () => {
-    process.env.PORT = '3000';
-    process.env.WORKFLOW_LOCAL_BASE_URL = 'http://localhost:9876';
-    let observedBaseUrl: string | undefined;
-
-    const config = withWorkflow(
-      async () => {
-        observedBaseUrl = process.env.WORKFLOW_LOCAL_BASE_URL;
-        return {};
-      },
-      {
-        workflows: {
-          local: { port: 4321 },
-        },
-      }
-    );
-    await config('phase-production-build', { defaultConfig: {} });
-
-    expect(process.env.PORT).toBe('4321');
-    expect(process.env.WORKFLOW_LOCAL_BASE_URL).toBe('http://localhost:4321');
-    expect(observedBaseUrl).toBe('http://localhost:4321');
-  });
-
-  it('prefers environment variables over workflow.config.ts', async () => {
-    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
-    process.chdir(projectDir);
-    writeFile(
-      join(projectDir, 'workflow.config.ts'),
-      `export default {
-  build: { projectRoot: '../configured-root' },
-  integration: {
-    type: 'next',
-    local: { port: 4321 }
-  }
-};`
-    );
-    process.env.PORT = '9876';
-
-    try {
-      const config = withWorkflow({ outputFileTracingRoot: '/explicit-root' });
-      await config('phase-production-build', { defaultConfig: {} });
-
-      expect(process.env.PORT).toBe('9876');
-      expect(builderConfigs[0]?.projectRoot).toBe('/explicit-root');
-    } finally {
-      process.chdir(originalCwd);
-      rmSync(projectDir, { recursive: true, force: true });
-    }
-  });
   it('applies workflow.config.ts to the Next builder and runtime binding', async () => {
     const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
     process.chdir(projectDir);
     writeFile(
+      join(projectDir, 'workflow.world.ts'),
+      `export default () => {
+  throw new Error('World provider must not run during builds');
+};`
+    );
+    writeFile(
       join(projectDir, 'workflow.config.ts'),
-      `const world = () => {
-  throw new Error('World factory must not run during builds');
-};
-
-export default {
-  world,
+      `export default {
+  world: './workflow.world.ts',
   build: {
     dirs: ['jobs'],
     projectRoot: '../repo-root',
@@ -295,21 +248,40 @@ export default {
   }
 };`
     );
+    process.env.PORT = '9876';
+    process.env.WORKFLOW_LOCAL_BASE_URL = 'http://localhost:9876';
+    let observedBaseUrl: string | undefined;
+
     try {
       const turbopackRoot = dirname(projectDir);
-      const config = withWorkflow({ turbopack: { root: turbopackRoot } });
+      const config = withWorkflow(
+        async () => {
+          observedBaseUrl = process.env.WORKFLOW_LOCAL_BASE_URL;
+          return {
+            outputFileTracingRoot: '/explicit-root',
+            turbopack: { root: turbopackRoot },
+          };
+        },
+        { workflows: { local: { port: 4000 } } }
+      );
       const resolvedConfig = await config('phase-production-build', {
         defaultConfig: {},
       });
 
-      expect(process.env.PORT).toBe('4321');
+      expect(process.env.PORT).toBe('4000');
+      expect(observedBaseUrl).toBe('http://localhost:4000');
       expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
       expect(builderConfigs[0]).toMatchObject({
         dirs: ['jobs'],
-        projectRoot: resolve(projectDir, '../repo-root'),
+        projectRoot: '/explicit-root',
         workflowConfig: {
           path: join(projectDir, 'workflow.config.ts'),
+          runtimePath: join(
+            projectDir,
+            'node_modules/.cache/workflow/runtime-config.mjs'
+          ),
           config: {
+            world: './workflow.world.ts',
             build: {
               sourcemap: false,
               manifest: {
@@ -329,7 +301,10 @@ export default {
           '@workflow/config/runtime-binding'
         ]
       ).toBe(
-        `./${relative(turbopackRoot, join(projectDir, 'workflow.config.ts'))}`
+        `./${relative(
+          turbopackRoot,
+          join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
+        )}`
       );
     } finally {
       process.chdir(originalCwd);

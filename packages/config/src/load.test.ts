@@ -1,8 +1,16 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadWorkflowConfig } from './load.js';
+import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 import { WorkflowConfigSchema } from './schema.js';
 
 const tempDirs: string[] = [];
@@ -21,6 +29,8 @@ function createProject(files: Record<string, string>): string {
 }
 
 afterEach(() => {
+  delete (globalThis as { __workflowWorldImports?: number })
+    .__workflowWorldImports;
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -32,7 +42,7 @@ describe('loadWorkflowConfig', () => {
       'workflow.config.ts': `export default { build: { dirs: ['parent'] } };`,
       'apps/web/workflow.config.ts': `export default {
         build: { dirs: ['app'], sourcemap: false },
-        integration: { type: 'next', lazyDiscovery: false }
+        integration: { type: 'next', local: { port: 4321 } }
       };`,
     });
     const app = join(project, 'apps', 'web');
@@ -45,20 +55,79 @@ describe('loadWorkflowConfig', () => {
     expect(loaded.path).toBe(join(app, 'workflow.config.ts'));
     expect(loaded.config).toEqual({
       build: { dirs: ['app'], sourcemap: false },
-      integration: { type: 'next', lazyDiscovery: false },
+      integration: { type: 'next', local: { port: 4321 } },
     });
   });
 
-  it('loads a World factory without calling it', async () => {
+  it('generates a runtime binding without loading the World module', async () => {
     const project = createProject({
+      'workflow.world.ts': `throw new Error('must stay lazy');`,
       'workflow.config.ts': `export default {
-        world: () => { throw new Error('must stay lazy'); }
+        world: './workflow.world.ts',
+        build: { dirs: ['jobs'] },
+        queue: { namespace: 'app' }
       };`,
     });
 
     const loaded = await loadWorkflowConfig({ cwd: project });
+    const runtimeSource = readFileSync(loaded.runtimePath as string, 'utf8');
 
-    expect(loaded.config.world).toBeTypeOf('function');
+    expect(loaded.config.world).toBe('./workflow.world.ts');
+    expect(runtimeSource).toContain('workflow.world.ts');
+    expect(runtimeSource).toContain('queue: {"namespace":"app"}');
+    expect(runtimeSource).not.toContain("dirs: ['jobs']");
+  });
+
+  it('loads the World module only when its provider runs', async () => {
+    const globals = globalThis as typeof globalThis & {
+      __workflowWorldImports?: number;
+    };
+    const project = createProject({
+      'workflow.world.mjs': `
+globalThis.__workflowWorldImports = (globalThis.__workflowWorldImports ?? 0) + 1;
+export default () => ({});
+`,
+      'workflow.config.ts': `export default { world: './workflow.world.mjs' };`,
+    });
+    const loaded = await loadWorkflowConfig({ cwd: project });
+
+    const runtime = (await import(
+      pathToFileURL(loaded.runtimePath as string).href
+    )) as {
+      default: RuntimeWorkflowConfig;
+    };
+    expect(globals.__workflowWorldImports).toBeUndefined();
+
+    await runtime.default.world?.();
+    expect(globals.__workflowWorldImports).toBe(1);
+  });
+
+  it('validates World package specifiers', async () => {
+    const project = createProject({
+      'node_modules/community-world/package.json': JSON.stringify({
+        name: 'community-world',
+        type: 'module',
+        exports: { import: './index.js' },
+      }),
+      'node_modules/community-world/index.js': `export default () => ({});`,
+      'workflow.config.ts': `export default { world: 'community-world' };`,
+    });
+
+    const loaded = await loadWorkflowConfig({ cwd: project });
+
+    expect(readFileSync(loaded.runtimePath as string, 'utf8')).toContain(
+      'import("community-world")'
+    );
+  });
+
+  it('rejects missing World modules', async () => {
+    const project = createProject({
+      'workflow.config.ts': `export default { world: './missing.ts' };`,
+    });
+
+    await expect(loadWorkflowConfig({ cwd: project })).rejects.toThrow(
+      'World module not found: ./missing.ts'
+    );
   });
 
   it('rejects multiple config files in one directory', async () => {

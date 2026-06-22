@@ -1,4 +1,22 @@
-import { getQueueTopicPrefix } from '@workflow/world';
+const QUEUE_NAMESPACE_PATTERN = /^[a-z][a-z0-9]*$/;
+
+function resolveQueueNamespace(namespace?: string): string | undefined {
+  return namespace ?? process.env.WORKFLOW_QUEUE_NAMESPACE ?? undefined;
+}
+
+function getQueueTopicPrefix(kind: 'workflow' | 'step', namespace?: string) {
+  if (namespace !== undefined) {
+    if (!QUEUE_NAMESPACE_PATTERN.test(namespace)) {
+      throw new Error(
+        `Invalid queue namespace "${namespace}": must be lowercase alphanumeric, starting with a letter`
+      );
+    }
+
+    return `__${namespace}_wkf_${kind}_`;
+  }
+
+  return `__wkf_${kind}_`;
+}
 
 /**
  * Creates a queue trigger configuration for the workflow handler.
@@ -15,14 +33,14 @@ import { getQueueTopicPrefix } from '@workflow/world';
  *
  * @example
  * // namespaced: topic = '__custom_wkf_workflow_*'
- * createWorkflowQueueTrigger('custom')
+ * createWorkflowQueueTrigger({ namespace: 'custom' })
  */
-export function createWorkflowQueueTrigger(namespace?: string) {
-  const resolvedNamespace = namespace ?? process.env.WORKFLOW_QUEUE_NAMESPACE;
+export function createWorkflowQueueTrigger(options?: { namespace?: string }) {
+  const namespace = resolveQueueNamespace(options?.namespace);
 
   return {
     type: 'queue/v2beta' as const,
-    topic: `${getQueueTopicPrefix('workflow', resolvedNamespace)}*`,
+    topic: `${getQueueTopicPrefix('workflow', namespace)}*`,
     consumer: 'default',
     retryAfterSeconds: 5, // Delay between retries (default: 60)
     initialDelaySeconds: 0, // Initial delay before first delivery (default: 0)

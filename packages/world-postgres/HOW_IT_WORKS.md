@@ -19,7 +19,7 @@ graph LR
     PG -.-> S["${prefix}steps<br/>(steps)"]
 ```
 
-Jobs include retry logic (3 attempts), idempotency keys, durable delayed rescheduling, and configurable worker concurrency (default: 50).
+Jobs include retry logic (3 attempts), idempotency keys, durable delayed rescheduling, and configurable worker concurrency (default: 10).
 
 ## Streaming
 
@@ -33,20 +33,18 @@ Real-time data streaming via **PostgreSQL LISTEN/NOTIFY**:
 
 ## Setup
 
-Call `world.start()` to initialize graphile-worker workers when constructing a
-World directly. The runtime starts a World selected in `workflow.config.ts`.
-
-When `.start()` is called, workers begin listening to graphile-worker queues.
-When a job arrives, the worker executes the queue message over the workflow
-HTTP routes and awaits completion before acknowledging the Graphile job.
+The Workflow runtime calls `world.start()` once for Worlds selected in
+`workflow.config.ts`. When constructing a World directly, call `world.start()`
+yourself. Workers then listen to graphile-worker queues and execute messages
+over the Workflow HTTP routes before acknowledging each job.
 
 When the runtime returns `{ timeoutSeconds }`, the worker schedules a new Graphile job with a future `runAt` time before finishing the current task.
 
 The worker targets the HTTP-compatible workflow endpoints directly: `.well-known/workflow/v1/flow` for workflows and `.well-known/workflow/v1/step` for steps.
 
 
-In **Next.js**, eagerly call `getWorld()` from `instrumentation.ts|js` to
-ensure a configured provider starts before request handling:
+In **Next.js**, eagerly call `getWorld()` from `instrumentation.ts|js` to start
+the configured provider before request handling:
 
 ```ts
 // instrumentation.ts
@@ -57,6 +55,3 @@ if (process.env.NEXT_RUNTIME !== "edge") {
   });
 }
 ```
-
-When using `createWorld()` outside `workflow.config.ts`, call `world.start()`
-yourself.

@@ -38,7 +38,9 @@ export class VercelBuildOutputAPIBuilder extends BaseBuilder {
       // serves no purpose without maps.
       shouldAddSourcemapSupport: this.sourcemapsEnabled,
       maxDuration: 'max',
-      experimentalTriggers: [createWorkflowQueueTrigger(this.queueNamespace)],
+      experimentalTriggers: [
+        createWorkflowQueueTrigger({ namespace: this.queueNamespace }),
+      ],
       runtime: this.config.runtime,
     });
 

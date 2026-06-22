@@ -1,8 +1,24 @@
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { basename, extname, isAbsolute, join, resolve } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import {
+  basename,
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from 'node:path';
+import type { WorldProvider } from '@workflow/world';
 import { findUp } from 'find-up';
 import { createJiti } from 'jiti';
+import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 import {
   type WorkflowConfig,
   WorkflowConfigSchema,
@@ -21,10 +37,11 @@ export type LoadWorkflowConfigOptions = {
   integration?: WorkflowIntegrationType;
 };
 
-export type LoadedWorkflowConfig = {
-  path: string | undefined;
-  config: WorkflowConfig;
-};
+export type LoadedWorkflowConfig =
+  | { path: undefined; runtimePath: undefined; config: WorkflowConfig }
+  | { path: string; runtimePath: string; config: WorkflowConfig };
+
+type FoundWorkflowConfig = Extract<LoadedWorkflowConfig, { path: string }>;
 
 async function discoverWorkflowConfig({
   cwd,
@@ -73,7 +90,7 @@ export async function loadWorkflowConfig(
 ): Promise<LoadedWorkflowConfig> {
   const path = await discoverWorkflowConfig(options);
   if (!path) {
-    return { path, config: {} };
+    return { path: undefined, runtimePath: undefined, config: {} };
   }
 
   const configModule = await createJiti(import.meta.url, {
@@ -96,5 +113,46 @@ export async function loadWorkflowConfig(
     `${basename(path)} configures "${config.integration?.type}" but was loaded by "${options.integration}".`
   );
 
-  return { path, config };
+  const runtimeDir = join(dirname(path), 'node_modules', '.cache', 'workflow');
+  let world = config.world;
+  if (world?.startsWith('.') || (world && isAbsolute(world))) {
+    const worldPath = resolve(dirname(path), world);
+    assert(
+      existsSync(worldPath) && statSync(worldPath).isFile(),
+      `World module not found: ${world}`
+    );
+    world = relative(runtimeDir, worldPath).replaceAll('\\', '/');
+    if (!world.startsWith('.')) world = `./${world}`;
+  } else if (world) {
+    createJiti(path).esmResolve(world);
+  }
+
+  const runtimePath = join(runtimeDir, 'runtime-config.mjs');
+  const worldFactory = world
+    ? `async () => { const provider = (await import(${JSON.stringify(world)})).default; return provider(); }`
+    : 'undefined';
+  mkdirSync(runtimeDir, { recursive: true });
+  writeFileSync(
+    runtimePath,
+    `const world = ${worldFactory};\nexport default { world, queue: ${JSON.stringify(config.queue)} };\n`
+  );
+
+  return { path, runtimePath, config };
+}
+
+export function createRuntimeWorkflowConfig({
+  path,
+  config,
+}: FoundWorkflowConfig): RuntimeWorkflowConfig {
+  if (!config.world) return { queue: config.queue };
+
+  const world = config.world;
+  const jiti = createJiti(path, { interopDefault: false });
+  return {
+    queue: config.queue,
+    world: async () => {
+      const module = await jiti.import<{ default: WorldProvider }>(world);
+      return module.default();
+    },
+  };
 }

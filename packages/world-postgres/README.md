@@ -33,7 +33,7 @@ export WORKFLOW_POSTGRES_URL="postgres://username:password@localhost:5432/databa
 # Optional: Job prefix for queue operations
 export WORKFLOW_POSTGRES_JOB_PREFIX="myapp"
 
-# Optional: Worker concurrency (default: 50)
+# Optional: Worker concurrency (default: 10)
 export WORKFLOW_POSTGRES_WORKER_CONCURRENCY="10"
 
 # Optional: Internal pg.Pool max size (default: 10)
@@ -59,26 +59,6 @@ const world = createWorld({
 import { Pool } from "pg";
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const worldFromPool = createWorld({ pool });
-```
-
-### workflow.config.ts
-
-Use `createWorld()` in `workflow.config.ts`:
-
-```typescript
-import type { WorkflowConfig } from 'workflow/config';
-import { createWorld } from '@workflow/world-postgres';
-
-const config: WorkflowConfig = {
-  world: () => createWorld({
-    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
-    jobPrefix: 'myapp_',
-    queueConcurrency: 50,
-    maxPoolSize: 52,
-  }),
-};
-
-export default config;
 ```
 
 ## Configuration Options

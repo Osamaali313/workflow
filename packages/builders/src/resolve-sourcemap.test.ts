@@ -46,6 +46,7 @@ function createBuilder(
         ? undefined
         : {
             path: '/tmp/workflow.config.ts',
+            runtimePath: '/tmp/runtime-config.mjs',
             config: { build: { sourcemap: options.workflowSourcemap } },
           },
   };
@@ -85,9 +86,7 @@ describe('resolveSourcemap', () => {
 
   it('prefers explicit config over environment variable', () => {
     process.env.WORKFLOW_SOURCEMAP = 'inline';
-    expect(
-      createBuilder(false, { watch: true }).callResolveSourcemap('inline')
-    ).toBe(false);
+    expect(createBuilder(false).callResolveSourcemap('inline')).toBe(false);
     expect(createBuilder('external').callResolveSourcemap('inline')).toBe(
       'external'
     );
@@ -96,9 +95,9 @@ describe('resolveSourcemap', () => {
   it('prefers environment variable over workflow.config.ts', () => {
     process.env.WORKFLOW_SOURCEMAP = 'inline';
     expect(
-      createBuilder(undefined, { workflowSourcemap: false }).callResolveSourcemap(
-        true
-      )
+      createBuilder(undefined, {
+        workflowSourcemap: false,
+      }).callResolveSourcemap(true)
     ).toBe('inline');
   });
 

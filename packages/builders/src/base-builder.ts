@@ -247,7 +247,7 @@ export abstract class BaseBuilder {
   }
 
   private get runtimeConfigPlugins(): esbuild.Plugin[] {
-    const path = this.config.workflowConfig?.path;
+    const path = this.config.workflowConfig?.runtimePath;
     if (!path) return [];
     return [
       {

@@ -1,6 +1,7 @@
 ---
 "@workflow/config": minor
 "@workflow/world": minor
+"@workflow/world-postgres": patch
 ---
 
-Add lazy World factories and a shared Workflow configuration schema.
+Add typed Workflow configuration with module-based lazy World providers.

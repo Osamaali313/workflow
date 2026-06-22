@@ -15,21 +15,37 @@ Create `workflow.config.ts` in your application:
 
 ```typescript title="workflow.config.ts" lineNumbers
 import type { WorkflowConfig } from "workflow/config";
-import { createWorld } from "@workflow/world-postgres";
 
-const config: WorkflowConfig = {
-  world: createWorld,
+const config = {
+  world: "./workflow.world.ts",
   build: {
     dirs: ["workflows"],
     sourcemap: false,
   },
   integration: {
     type: "next",
-    lazyDiscovery: true,
+    local: { port: 4000 },
   },
-};
+} satisfies WorkflowConfig;
 
 export default config;
+```
+
+The World module default-exports a lazy provider:
+
+```typescript title="workflow.world.ts" lineNumbers
+import type { WorldProvider } from "workflow/config";
+import { createWorld } from "@workflow/world-postgres";
+
+const world: WorldProvider = () =>
+  createWorld({
+    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+    jobPrefix: "myapp_",
+    queueConcurrency: 50,
+    maxPoolSize: 52,
+  });
+
+export default world;
 ```
 
 <Callout type="info">
@@ -50,33 +66,34 @@ From highest to lowest priority:
 
 ## World
 
-`world` is the function used to create the application's World. Assign a
-`createWorld` function directly, or wrap it when passing options.
+`world` is a module specifier relative to `workflow.config.ts`, or a package
+name. Its default export must satisfy `WorldProvider`. The provider runs only
+when the application first needs its World.
 
 ## Worlds by Environment
 
 Choose a World inside the factory based on the runtime environment:
 
-```typescript title="workflow.config.ts" lineNumbers
-import type { WorkflowConfig } from "workflow/config";
+```typescript title="workflow.world.ts" lineNumbers
+import type { WorldProvider } from "workflow/config";
 import { createLocalWorld } from "@workflow/world-local";
 import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
 
-const config: WorkflowConfig = {
-  world: () => {
-    switch (process.env.NODE_ENV) {
-      case "production":
-        return createPostgresWorld();
-      case "development":
-      case "test":
-        return createLocalWorld();
-      default:
-        throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
-    }
-  },
+const world: WorldProvider = () => {
+  switch (process.env.NODE_ENV) {
+    case "production":
+      return createPostgresWorld({
+        connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+      });
+    case "development":
+    case "test":
+      return createLocalWorld();
+    default:
+      throw new Error(`Unexpected NODE_ENV: ${process.env.NODE_ENV}`);
+  }
 };
 
-export default config;
+export default world;
 ```
 
 ## Integration Settings
@@ -88,7 +105,7 @@ you are configuring:
 
 ```typescript
 // Next.js
-integration: { type: "next", lazyDiscovery: true }
+integration: { type: "next", local: { port: 4000 } }
 
 // Nitro
 integration: { type: "nitro", typescriptPlugin: true, runtime: "nodejs24.x" }

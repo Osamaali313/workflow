@@ -352,9 +352,15 @@ export function withWorkflow(
     }
 
     const loaderPath = require.resolve('./loader');
-    const loadedWorkflowConfig = await loadWorkflowConfigForNext();
+    const { loadWorkflowConfig } = require('@workflow/config/load') as {
+      loadWorkflowConfig: WorkflowConfigLoader;
+    };
+    const loadedWorkflowConfig = await loadWorkflowConfig({
+      cwd: process.cwd(),
+      integration: 'next',
+    });
     const workflowConfig = loadedWorkflowConfig.config;
-    const runtimeConfigPath = loadedWorkflowConfig.path;
+    const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
     const nextIntegration =
       workflowConfig.integration?.type === 'next'
         ? workflowConfig.integration

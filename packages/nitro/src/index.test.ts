@@ -2,9 +2,32 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { LocalBuilder, VercelBuilder } from './builders.js';
 import nitroModule from './index.js';
+
+const projects: string[] = [];
+const originalEnv = {
+  WORKFLOW_QUEUE_NAMESPACE: process.env.WORKFLOW_QUEUE_NAMESPACE,
+  WORKFLOW_PUBLIC_MANIFEST: process.env.WORKFLOW_PUBLIC_MANIFEST,
+};
+
+function createProject(config: string): string {
+  const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
+  projects.push(project);
+  writeFileSync(join(project, 'workflow.config.ts'), config);
+  return project;
+}
+
+afterEach(() => {
+  for (const project of projects.splice(0)) {
+    rmSync(project, { recursive: true, force: true });
+  }
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
 
 type StubOptions = {
   routing: boolean;
@@ -124,40 +147,31 @@ describe('@workflow/nitro virtual handlers', () => {
   });
 
   it('installs runtime config before importing unbundled dev routes', async () => {
-    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
-    writeFileSync(join(project, 'workflow.config.ts'), 'export default {};');
+    const project = createProject('export default {};');
+    const nitro = createNitroStub({
+      routing: false,
+      dev: true,
+      rootDir: project,
+    });
 
-    try {
-      const nitro = createNitroStub({
-        routing: false,
-        dev: true,
-        rootDir: project,
-      });
+    await nitroModule.setup(nitro);
 
-      await nitroModule.setup(nitro);
-
-      const source = nitro.options.virtual['#workflow/workflows.mjs'];
-      const assignment =
-        'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;';
-      expect(source).toContain(
-        'import workflowConfig from "@workflow/config/runtime-binding";'
-      );
-      expect(source).not.toContain('@workflow/config/runtime";');
-      expect(source).toContain(assignment);
-      expect(source.indexOf(assignment)).toBeLessThan(
-        source.indexOf('import(currentImportPath)')
-      );
-    } finally {
-      rmSync(project, { recursive: true, force: true });
-    }
+    const source = nitro.options.virtual['#workflow/workflows.mjs'];
+    const assignment =
+      'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;';
+    expect(source).toContain(
+      'import workflowConfig from "@workflow/config/runtime-binding";'
+    );
+    expect(source).toContain(assignment);
+    expect(source.indexOf(assignment)).toBeLessThan(
+      source.indexOf('import(currentImportPath)')
+    );
   });
 });
 
 describe('@workflow/nitro workflow.config.ts', () => {
   it('applies typed Nitro settings and a namespaced queue trigger', async () => {
-    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
-    writeFileSync(
-      join(project, 'workflow.config.ts'),
+    const project = createProject(
       `export default {
   build: {
     dirs: ['server/jobs'],
@@ -172,90 +186,66 @@ describe('@workflow/nitro workflow.config.ts', () => {
   }
 };`
     );
+    const nitro = createNitroStub({
+      routing: true,
+      preset: 'vercel',
+      rootDir: project,
+    });
 
-    try {
-      const nitro = createNitroStub({
-        routing: true,
-        preset: 'vercel',
-        rootDir: project,
-      });
+    await nitroModule.setup(nitro);
 
-      await nitroModule.setup(nitro);
-
-      expect(nitro.options.workflow).toMatchObject({
-        dirs: ['server/jobs'],
-        typescriptPlugin: true,
-        runtime: 'nodejs24.x',
-      });
-      expect(
-        nitro.options.typescript.tsConfig.compilerOptions.plugins
-      ).toContainEqual({ name: 'workflow' });
-      expect(
-        nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
-          .experimentalTriggers
-      ).toEqual([
-        expect.objectContaining({
-          type: 'queue/v2beta',
-          topic: '__myapp_wkf_workflow_*',
-        }),
-      ]);
-      expect(
-        nitro.options.handlers.some(
-          (handler: { route: string }) =>
-            handler.route === '/.well-known/workflow/v1/manifest.json'
-        )
-      ).toBe(true);
-    } finally {
-      rmSync(project, { recursive: true, force: true });
-    }
+    expect(nitro.options.workflow).toMatchObject({
+      dirs: ['server/jobs'],
+      typescriptPlugin: true,
+      runtime: 'nodejs24.x',
+    });
+    expect(
+      nitro.options.typescript.tsConfig.compilerOptions.plugins
+    ).toContainEqual({ name: 'workflow' });
+    expect(
+      nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
+        .experimentalTriggers
+    ).toEqual([
+      expect.objectContaining({
+        type: 'queue/v2beta',
+        topic: '__myapp_wkf_workflow_*',
+      }),
+    ]);
+    expect(
+      nitro.options.handlers.some(
+        (handler: { route: string }) =>
+          handler.route === '/.well-known/workflow/v1/manifest.json'
+      )
+    ).toBe(true);
   });
 
   it('prefers environment variables over workflow.config.ts', async () => {
-    const project = mkdtempSync(join(tmpdir(), 'workflow-nitro-config-'));
-    writeFileSync(
-      join(project, 'workflow.config.ts'),
+    const project = createProject(
       `export default {
   build: { manifest: { public: true } },
   queue: { namespace: 'configured' }
 };`
     );
-    const queueNamespace = process.env.WORKFLOW_QUEUE_NAMESPACE;
-    const publicManifest = process.env.WORKFLOW_PUBLIC_MANIFEST;
     process.env.WORKFLOW_QUEUE_NAMESPACE = 'environment';
     process.env.WORKFLOW_PUBLIC_MANIFEST = '0';
+    const nitro = createNitroStub({
+      routing: true,
+      preset: 'vercel',
+      rootDir: project,
+    });
 
-    try {
-      const nitro = createNitroStub({
-        routing: true,
-        preset: 'vercel',
-        rootDir: project,
-      });
+    await nitroModule.setup(nitro);
 
-      await nitroModule.setup(nitro);
-
-      expect(
-        nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
-          .experimentalTriggers[0].topic
-      ).toBe('__environment_wkf_workflow_*');
-      expect(
-        nitro.options.handlers.some(
-          (handler: { route: string }) =>
-            handler.route === '/.well-known/workflow/v1/manifest.json'
-        )
-      ).toBe(false);
-    } finally {
-      if (queueNamespace === undefined) {
-        delete process.env.WORKFLOW_QUEUE_NAMESPACE;
-      } else {
-        process.env.WORKFLOW_QUEUE_NAMESPACE = queueNamespace;
-      }
-      if (publicManifest === undefined) {
-        delete process.env.WORKFLOW_PUBLIC_MANIFEST;
-      } else {
-        process.env.WORKFLOW_PUBLIC_MANIFEST = publicManifest;
-      }
-      rmSync(project, { recursive: true, force: true });
-    }
+    expect(
+      nitro.options.vercel.functionRules['/.well-known/workflow/v1/flow']
+        .experimentalTriggers[0].topic
+    ).toBe('__environment_wkf_workflow_*');
+    expect(
+      nitro.options.handlers.some(
+        (handler: { route: string }) =>
+          handler.route === '/.well-known/workflow/v1/manifest.json'
+      )
+    ).toBe(false);
   });
 });
 
@@ -458,7 +448,11 @@ describe('@workflow/nitro isNitroV2 detection', () => {
 });
 
 describe('@workflow/nitro externals forwarding', () => {
-  const loadedConfig = { path: undefined, config: {} } as const;
+  const loadedConfig = {
+    path: undefined,
+    runtimePath: undefined,
+    config: {},
+  } as const;
 
   for (const [label, Builder] of [
     ['VercelBuilder', VercelBuilder],

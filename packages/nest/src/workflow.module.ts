@@ -6,7 +6,10 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { createBuildQueue } from '@workflow/builders';
-import { loadWorkflowConfig } from '@workflow/config/load';
+import {
+  createRuntimeWorkflowConfig,
+  loadWorkflowConfig,
+} from '@workflow/config/load';
 import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
 import { closeWorld } from '@workflow/core/runtime';
 import { type NestBuilderOptions, NestLocalBuilder } from './builder.js';
@@ -76,7 +79,11 @@ export class WorkflowModule implements OnModuleInit, OnModuleDestroy {
       workflowConfig,
     });
 
-    setRuntimeWorkflowConfig(config);
+    setRuntimeWorkflowConfig(
+      workflowConfig.path
+        ? createRuntimeWorkflowConfig(workflowConfig)
+        : undefined
+    );
 
     const publicManifest =
       process.env.WORKFLOW_PUBLIC_MANIFEST === undefined

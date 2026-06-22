@@ -14,7 +14,7 @@ describe('createWorkflowQueueTrigger', () => {
   });
 
   it('uses an explicit namespace when provided', () => {
-    expect(createWorkflowQueueTrigger('custom').topic).toBe(
+    expect(createWorkflowQueueTrigger({ namespace: 'custom' }).topic).toBe(
       '__custom_wkf_workflow_*'
     );
   });
@@ -36,7 +36,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
   });
 
   it('inlines an explicit namespace', () => {
-    expect(createWorkflowEntrypointOptionsCode('custom')).toBe(
+    expect(createWorkflowEntrypointOptionsCode({ namespace: 'custom' })).toBe(
       ', { namespace: "custom" }'
     );
   });

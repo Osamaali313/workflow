@@ -5,4 +5,4 @@
 "workflow": minor
 ---
 
-Load shared Workflow configuration across runtime, build, and CLI entry points.
+Bundle configured World modules and queue settings across runtime, build, and CLI entry points.

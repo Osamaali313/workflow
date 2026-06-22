@@ -438,7 +438,7 @@ export async function getNextBuilderEager() {
         workflows: {
           maxDuration: 'max',
           experimentalTriggers: [
-            createWorkflowQueueTrigger(this.queueNamespace),
+            createWorkflowQueueTrigger({ namespace: this.queueNamespace }),
           ],
         },
       };

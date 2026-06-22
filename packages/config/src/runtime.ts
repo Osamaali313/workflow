@@ -1,17 +1,17 @@
-import type { WorkflowConfig } from './schema.js';
+import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 
-const RuntimeWorkflowConfig = Symbol.for('@workflow/config/runtime');
+const RuntimeWorkflowConfigSymbol = Symbol.for('@workflow/config/runtime');
 
 const globals = globalThis as typeof globalThis & {
-  [RuntimeWorkflowConfig]?: WorkflowConfig;
+  [RuntimeWorkflowConfigSymbol]?: RuntimeWorkflowConfig;
 };
 
-export function getRuntimeWorkflowConfig(): WorkflowConfig | undefined {
-  return globals[RuntimeWorkflowConfig];
+export function getRuntimeWorkflowConfig(): RuntimeWorkflowConfig | undefined {
+  return globals[RuntimeWorkflowConfigSymbol];
 }
 
 export function setRuntimeWorkflowConfig(
-  config: WorkflowConfig | undefined
+  config: RuntimeWorkflowConfig | undefined
 ): void {
-  globals[RuntimeWorkflowConfig] = config;
+  globals[RuntimeWorkflowConfigSymbol] = config;
 }

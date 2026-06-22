@@ -20,9 +20,13 @@ describe('WorkflowModule', () => {
     const project = mkdtempSync(join(tmpdir(), 'workflow-nest-config-'));
     projects.push(project);
     writeFileSync(
+      join(project, 'workflow.world.ts'),
+      `export default () => ({ marker: 'world' });`
+    );
+    writeFileSync(
       join(project, 'workflow.config.ts'),
       `export default {
-  world: () => { throw new Error('must stay lazy'); },
+  world: './workflow.world.ts',
   build: { dirs: ['src/jobs'], sourcemap: false },
   integration: { type: 'nest', outDir: '.generated/workflow' }
 };`
@@ -40,9 +44,10 @@ describe('WorkflowModule', () => {
 
     expect(build).toHaveBeenCalledOnce();
     expect(builder?.outDir).toBe(resolve(project, '.generated/workflow'));
-    expect(getRuntimeWorkflowConfig()).toMatchObject({
-      build: { dirs: ['src/jobs'], sourcemap: false },
-      integration: { type: 'nest' },
+    const runtimeConfig = getRuntimeWorkflowConfig();
+    expect(runtimeConfig?.world).toBeTypeOf('function');
+    await expect(runtimeConfig?.world?.()).resolves.toMatchObject({
+      marker: 'world',
     });
 
     await module.onModuleDestroy();

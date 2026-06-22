@@ -1,10 +1,5 @@
-import type { World } from '@workflow/world';
 import { QueueNamespaceSchema } from '@workflow/world/queue.js';
 import { z } from 'zod/v4';
-
-const worldSchema = z.custom<() => World | Promise<World>>(
-  (value) => typeof value === 'function'
-);
 
 const sourcemapSchema = z.union([
   z.boolean(),
@@ -15,7 +10,6 @@ export type SourcemapMode = z.infer<typeof sourcemapSchema>;
 const integrationSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('next'),
-    lazyDiscovery: z.boolean().optional(),
     local: z
       .strictObject({
         port: z.number().int().positive().max(65_535),
@@ -38,7 +32,7 @@ const integrationSchema = z.discriminatedUnion('type', [
 ]);
 
 export const WorkflowConfigSchema = z.strictObject({
-  world: worldSchema.optional(),
+  world: z.string().min(1).optional(),
   build: z
     .strictObject({
       dirs: z.array(z.string().min(1)).min(1).optional(),

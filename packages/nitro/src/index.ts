@@ -75,7 +75,7 @@ export const nitroModule = {
       integration: 'nitro',
     });
     const workflowConfig = loadedWorkflowConfig.config;
-    const runtimeConfigPath = loadedWorkflowConfig.path;
+    const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
     const nitroIntegration =
       workflowConfig.integration?.type === 'nitro'
         ? workflowConfig.integration
@@ -92,9 +92,10 @@ export const nitroModule = {
       process.env.WORKFLOW_PUBLIC_MANIFEST === undefined
         ? (workflowConfig.build?.manifest?.public ?? false)
         : process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
-    const workflowQueueTrigger = createWorkflowQueueTrigger(
-      process.env.WORKFLOW_QUEUE_NAMESPACE ?? workflowConfig.queue?.namespace
-    );
+    const workflowQueueTrigger = createWorkflowQueueTrigger({
+      namespace:
+        process.env.WORKFLOW_QUEUE_NAMESPACE ?? workflowConfig.queue?.namespace,
+    });
     const isVercelDeploy =
       !nitro.options.dev && nitro.options.preset === 'vercel';
 
