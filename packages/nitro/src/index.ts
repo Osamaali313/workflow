@@ -109,10 +109,13 @@ export const nitroModule = {
       if (runtimeConfigPath) {
         plugins.push({
           name: 'workflow:runtime-config',
-          resolveId(source: string) {
-            return source === '@workflow/config/runtime-binding'
-              ? runtimeConfigPath
-              : null;
+          resolveId: {
+            order: 'pre',
+            handler(source: string) {
+              return source === '@workflow/config/runtime-binding'
+                ? { id: runtimeConfigPath, external: false }
+                : null;
+            },
           },
         });
       }
@@ -482,15 +485,15 @@ function addVirtualHandler(
     'workflow/webhook.mjs': '',
     'workflow/workflows.mjs': `await import(/* @vite-ignore */ pathToFileURL(${stepsImportPath}).href + "?t=" + version);`,
   };
-
-  if (nitro.options.dev) {
-    const runtimeConfigSetup = hasRuntimeConfig
-      ? `
+  const runtimeConfigSetup = hasRuntimeConfig
+    ? `
       import workflowConfig from "@workflow/config/runtime-binding";
       globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;
+      globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;
     `
-      : '';
+    : '';
 
+  if (nitro.options.dev) {
     // Dev mode: load generated workflow bundles from disk at request time.
     // This keeps `.nitro/workflow/*.mjs` out of Nitro's own bundle graph,
     // which avoids rebuild loops and stale dependency graphs during HMR.
@@ -563,6 +566,7 @@ function addVirtualHandler(
   if (!nitro.routing) {
     // Nitro v2 (legacy)
     nitro.options.virtual[`#${buildPath}`] = /* js */ `
+    ${runtimeConfigSetup}
     import ${handlerImportPath};
     import { fromWebHandler } from "h3";
     import { POST } from ${handlerImportPath};
@@ -571,6 +575,7 @@ function addVirtualHandler(
   } else {
     // Nitro v3+ (native web handlers)
     nitro.options.virtual[`#${buildPath}`] = /* js */ `
+    ${runtimeConfigSetup}
     import ${handlerImportPath};
     import { POST } from ${handlerImportPath};
     export default async ({ req }) => {

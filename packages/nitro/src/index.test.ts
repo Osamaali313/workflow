@@ -159,10 +159,13 @@ describe('@workflow/nitro virtual handlers', () => {
     const source = nitro.options.virtual['#workflow/workflows.mjs'];
     const assignment =
       'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;';
+    const namespaceAssignment =
+      'globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;';
     expect(source).toContain(
       'import workflowConfig from "@workflow/config/runtime-binding";'
     );
     expect(source).toContain(assignment);
+    expect(source).toContain(namespaceAssignment);
     expect(source.indexOf(assignment)).toBeLessThan(
       source.indexOf('import(currentImportPath)')
     );
@@ -217,6 +220,16 @@ describe('@workflow/nitro workflow.config.ts', () => {
           handler.route === '/.well-known/workflow/v1/manifest.json'
       )
     ).toBe(true);
+    const source = nitro.options.virtual['#workflow/workflows.mjs'];
+    expect(source).toContain(
+      'import workflowConfig from "@workflow/config/runtime-binding";'
+    );
+    expect(source).toContain(
+      'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;'
+    );
+    expect(source).toContain(
+      'globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;'
+    );
   });
 
   it('prefers environment variables over workflow.config.ts', async () => {
