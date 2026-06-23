@@ -241,11 +241,7 @@ describe('withWorkflow builder config', () => {
     sourcemap: false,
     manifest: { public: true, output: 'custom-manifest.json' }
   },
-  queue: { namespace: 'myapp' },
-  integration: {
-    type: 'next',
-    local: { port: 4321 }
-  }
+  queue: { namespace: 'myapp' }
 };`
     );
     process.env.PORT = '9876';

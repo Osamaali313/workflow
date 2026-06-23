@@ -10,24 +10,11 @@ export type SourcemapMode = z.infer<typeof sourcemapSchema>;
 const integrationSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('next'),
-    local: z
-      .strictObject({
-        port: z.number().int().positive().max(65_535),
-      })
-      .optional(),
   }),
   z.strictObject({
     type: z.literal('nitro'),
     typescriptPlugin: z.boolean().optional(),
     runtime: z.string().min(1).optional(),
-  }),
-  z.strictObject({
-    type: z.literal('nest'),
-    moduleType: z.enum(['es6', 'commonjs']).optional(),
-    outDir: z.string().min(1).optional(),
-    distDir: z.string().min(1).optional(),
-    watch: z.boolean().optional(),
-    skipBuild: z.boolean().optional(),
   }),
 ]);
 

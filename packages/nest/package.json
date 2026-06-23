@@ -34,8 +34,6 @@
   "dependencies": {
     "@swc/core": "catalog:",
     "@workflow/builders": "workspace:*",
-    "@workflow/config": "workspace:*",
-    "@workflow/core": "workspace:*",
     "@workflow/swc-plugin": "workspace:*",
     "pathe": "2.0.3"
   },

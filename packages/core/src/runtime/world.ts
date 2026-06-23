@@ -31,6 +31,12 @@ const globalSymbols: typeof globalThis & {
   [WorldCachePromise]?: Promise<World>;
 } = globalThis;
 
+function getWorkflowConfig() {
+  return boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
+}
+
+setWorkflowQueueNamespace(getWorkflowConfig().queue?.namespace);
+
 // Dynamic import for custom world modules. Uses a standard import()
 // wrapped in a try/catch with require() fallback for CJS test runners.
 // Note: the previous `new Function('specifier', 'return import(specifier)')`
@@ -133,8 +139,7 @@ type ResolvedWorld =
   | { type: 'legacy'; world: World };
 
 async function resolveWorld(): Promise<ResolvedWorld> {
-  const config = boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
-  setWorkflowQueueNamespace(config.queue?.namespace);
+  const config = getWorkflowConfig();
 
   if (process.env.WORKFLOW_TARGET_WORLD) {
     return {

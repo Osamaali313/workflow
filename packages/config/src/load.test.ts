@@ -42,7 +42,7 @@ describe('loadWorkflowConfig', () => {
       'workflow.config.ts': `export default { build: { dirs: ['parent'] } };`,
       'apps/web/workflow.config.ts': `export default {
         build: { dirs: ['app'], sourcemap: false },
-        integration: { type: 'next', local: { port: 4321 } }
+        integration: { type: 'next' }
       };`,
     });
     const app = join(project, 'apps', 'web');
@@ -55,7 +55,7 @@ describe('loadWorkflowConfig', () => {
     expect(loaded.path).toBe(join(app, 'workflow.config.ts'));
     expect(loaded.config).toEqual({
       build: { dirs: ['app'], sourcemap: false },
-      integration: { type: 'next', local: { port: 4321 } },
+      integration: { type: 'next' },
     });
   });
 
@@ -170,7 +170,7 @@ export default () => ({});
 
   it('rejects integration config for another platform', async () => {
     const project = createProject({
-      'workflow.config.ts': `export default { integration: { type: 'nest' } };`,
+      'workflow.config.ts': `export default { integration: { type: 'nitro' } };`,
     });
 
     await expect(
@@ -178,7 +178,7 @@ export default () => ({});
         cwd: project,
         integration: 'next',
       })
-    ).rejects.toThrow('configures "nest" but was loaded by "next"');
+    ).rejects.toThrow('configures "nitro" but was loaded by "next"');
   });
 
   it('rejects top-level config functions and unknown keys', async () => {
@@ -202,13 +202,8 @@ export default () => ({});
     );
   });
 
-  it('rejects empty single-setting sections', () => {
+  it('rejects an empty queue section', () => {
     expect(() => WorkflowConfigSchema.parse({ queue: {} })).toThrow();
-    expect(() =>
-      WorkflowConfigSchema.parse({
-        integration: { type: 'next', local: {} },
-      })
-    ).toThrow();
   });
 
   it('rejects mixed integration settings', () => {

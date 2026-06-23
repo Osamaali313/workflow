@@ -1,7 +1,8 @@
 import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
 import type { World } from '@workflow/world';
-import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
+import { resolveQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getWorldLazy } from './get-world-lazy.js';
 import { closeWorld, getWorld, getWorldHandlers } from './world.js';
 
 const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
@@ -9,7 +10,6 @@ const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
 afterEach(async () => {
   await closeWorld();
   setRuntimeWorkflowConfig(undefined);
-  setWorkflowQueueNamespace(undefined);
   if (targetWorld === undefined) {
     delete process.env.WORKFLOW_TARGET_WORLD;
   } else {
@@ -35,6 +35,7 @@ describe('configured World', () => {
       queue: { namespace: 'app' },
     });
 
+    expect(resolveQueueNamespace()).toBe('app');
     expect(create).not.toHaveBeenCalled();
     const [resolved, handlers] = await Promise.all([
       getWorld(),
@@ -95,10 +96,12 @@ describe('configured World', () => {
     setRuntimeWorkflowConfig({ world: create });
 
     const pendingWorld = getWorld();
+    const pendingLazyWorld = getWorldLazy();
     const closingWorld = closeWorld();
     finishStart();
 
     await expect(pendingWorld).resolves.toBe(first);
+    await expect(pendingLazyWorld).resolves.toBe(first);
     await closingWorld;
     expect(firstClose).toHaveBeenCalledOnce();
     await expect(getWorld()).resolves.toBe(second);

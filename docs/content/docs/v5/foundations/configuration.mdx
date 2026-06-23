@@ -22,10 +22,6 @@ const config = {
     dirs: ["workflows"],
     sourcemap: false,
   },
-  integration: {
-    type: "next",
-    local: { port: 4000 },
-  },
 } satisfies WorkflowConfig;
 
 export default config;
@@ -104,9 +100,5 @@ you are configuring:
 {/* @skip-typecheck: mutually exclusive config fragments */}
 
 ```typescript
-// Next.js
-integration: { type: "next", local: { port: 4000 } }
-
-// Nitro
 integration: { type: "nitro", typescriptPlugin: true, runtime: "nodejs24.x" }
 ```

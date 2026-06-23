@@ -1,8 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { BaseBuilder, createBaseBuilderConfig } from '@workflow/builders';
-import type { SourcemapMode } from '@workflow/config';
-import type { LoadedWorkflowConfig } from '@workflow/config/load';
-import { join, resolve } from 'pathe';
+import { join } from 'pathe';
 import { rewriteTsImportsInContent } from './cjs-rewrite.js';
 
 export interface NestBuilderOptions {
@@ -16,14 +14,6 @@ export interface NestBuilderOptions {
    * @default ['src']
    */
   dirs?: string[];
-  /**
-   * Project root for package and workspace module resolution.
-   */
-  projectRoot?: string;
-  /**
-   * Packages to leave external in generated workflow bundles.
-   */
-  externalPackages?: string[];
   /**
    * Output directory for generated workflow bundles
    * @default '.nestjs/workflow'
@@ -56,12 +46,8 @@ export interface NestBuilderOptions {
    * `'linked'`, `'external'`, `'both'`, or `false` to omit source maps.
    * Can also be set via the `WORKFLOW_SOURCEMAP` environment variable.
    */
-  sourcemap?: SourcemapMode;
+  sourcemap?: boolean | 'inline' | 'linked' | 'external' | 'both';
 }
-
-type NestLocalBuilderOptions = NestBuilderOptions & {
-  workflowConfig?: LoadedWorkflowConfig;
-};
 
 export class NestLocalBuilder extends BaseBuilder {
   #outDir: string;
@@ -70,27 +56,16 @@ export class NestLocalBuilder extends BaseBuilder {
   #dirs: string[];
   #workingDir: string;
 
-  constructor(options: NestLocalBuilderOptions = {}) {
-    const config = options.workflowConfig?.config;
-    const integration =
-      config?.integration?.type === 'nest' ? config.integration : undefined;
-    const build = config?.build;
+  constructor(options: NestBuilderOptions = {}) {
     const workingDir = options.workingDir ?? process.cwd();
-    const outDir = resolve(
-      workingDir,
-      options.outDir ?? integration?.outDir ?? '.nestjs/workflow'
-    );
-    const dirs = options.dirs ?? build?.dirs ?? ['src'];
-    const projectRoot = options.projectRoot ?? build?.projectRoot;
+    const outDir = options.outDir ?? join(workingDir, '.nestjs/workflow');
+    const dirs = options.dirs ?? ['src'];
     super({
       ...createBaseBuilderConfig({
         workingDir,
-        watch: options.watch ?? integration?.watch ?? false,
+        watch: options.watch ?? false,
         dirs,
-        projectRoot: projectRoot ? resolve(workingDir, projectRoot) : undefined,
-        externalPackages: options.externalPackages ?? build?.externalPackages,
         sourcemap: options.sourcemap,
-        workflowConfig: options.workflowConfig,
       }),
       // Use 'standalone' as base target - we handle the specific bundling ourselves
       buildTarget: 'standalone',
@@ -99,8 +74,8 @@ export class NestLocalBuilder extends BaseBuilder {
       webhookBundlePath: join(outDir, 'webhook.mjs'),
     });
     this.#outDir = outDir;
-    this.#moduleType = options.moduleType ?? integration?.moduleType ?? 'es6';
-    this.#distDir = options.distDir ?? integration?.distDir ?? 'dist';
+    this.#moduleType = options.moduleType ?? 'es6';
+    this.#distDir = options.distDir ?? 'dist';
     this.#dirs = dirs;
     this.#workingDir = workingDir;
   }

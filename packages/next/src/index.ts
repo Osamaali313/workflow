@@ -361,10 +361,6 @@ export function withWorkflow(
     });
     const workflowConfig = loadedWorkflowConfig.config;
     const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
-    const nextIntegration =
-      workflowConfig.integration?.type === 'next'
-        ? workflowConfig.integration
-        : undefined;
 
     if (!process.env.VERCEL_DEPLOYMENT_ID) {
       if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
@@ -374,11 +370,6 @@ export function withWorkflow(
       if (workflows?.local?.port !== undefined) {
         process.env.PORT = workflows.local.port.toString();
         process.env.WORKFLOW_LOCAL_BASE_URL = `http://localhost:${workflows.local.port}`;
-      } else if (
-        process.env.PORT === undefined &&
-        nextIntegration?.local?.port !== undefined
-      ) {
-        process.env.PORT = nextIntegration.local.port.toString();
       }
     } else if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
       process.env.WORKFLOW_TARGET_WORLD = 'vercel';

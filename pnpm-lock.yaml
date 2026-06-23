@@ -763,12 +763,6 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
-      '@workflow/config':
-        specifier: workspace:*
-        version: link:../config
-      '@workflow/core':
-        specifier: workspace:*
-        version: link:../core
       '@workflow/swc-plugin':
         specifier: workspace:*
         version: link:../swc-plugin-workflow

@@ -1,17 +1,11 @@
 import {
   type DynamicModule,
-  Inject,
   Module,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
 import { createBuildQueue } from '@workflow/builders';
-import {
-  createRuntimeWorkflowConfig,
-  loadWorkflowConfig,
-} from '@workflow/config/load';
-import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
-import { closeWorld } from '@workflow/core/runtime';
+import { join } from 'pathe';
 import { type NestBuilderOptions, NestLocalBuilder } from './builder.js';
 import {
   configureWorkflowController,
@@ -26,18 +20,16 @@ export interface WorkflowModuleOptions extends NestBuilderOptions {
   skipBuild?: boolean;
 }
 
+const DEFAULT_OUT_DIR = '.nestjs/workflow';
+
 /**
  * NestJS module that provides workflow functionality.
  * Builds workflow bundles on module initialization and registers the workflow controller.
  */
 @Module({})
 export class WorkflowModule implements OnModuleInit, OnModuleDestroy {
+  private static builder: NestLocalBuilder | null = null;
   private static buildQueue = createBuildQueue();
-
-  constructor(
-    @Inject('WORKFLOW_OPTIONS')
-    private readonly options: WorkflowModuleOptions
-  ) {}
 
   /**
    * Configure the WorkflowModule with options.
@@ -52,6 +44,20 @@ export class WorkflowModule implements OnModuleInit, OnModuleDestroy {
    * ```
    */
   static forRoot(options: WorkflowModuleOptions = {}): DynamicModule {
+    const workingDir = options.workingDir ?? process.cwd();
+    const outDir = options.outDir ?? join(workingDir, DEFAULT_OUT_DIR);
+
+    // Configure the controller with the output directory
+    configureWorkflowController(outDir);
+
+    // Create builder if we're not skipping builds
+    if (!options.skipBuild) {
+      WorkflowModule.builder = new NestLocalBuilder({
+        ...options,
+        outDir,
+      });
+    }
+
     return {
       module: WorkflowModule,
       controllers: [WorkflowController],
@@ -66,37 +72,14 @@ export class WorkflowModule implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    const { workingDir = process.cwd() } = this.options;
-    const workflowConfig = await loadWorkflowConfig({
-      cwd: workingDir,
-      integration: 'nest',
-    });
-    const config = workflowConfig.config;
-    const integration =
-      config.integration?.type === 'nest' ? config.integration : undefined;
-    const builder = new NestLocalBuilder({
-      ...this.options,
-      workflowConfig,
-    });
-
-    setRuntimeWorkflowConfig(
-      workflowConfig.path
-        ? createRuntimeWorkflowConfig(workflowConfig)
-        : undefined
-    );
-
-    const publicManifest =
-      process.env.WORKFLOW_PUBLIC_MANIFEST === undefined
-        ? (config.build?.manifest?.public ?? false)
-        : process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
-    configureWorkflowController(builder.outDir, publicManifest);
-    if (this.options.skipBuild ?? integration?.skipBuild) return;
-
-    await WorkflowModule.buildQueue(() => builder.build());
+    const builder = WorkflowModule.builder;
+    if (builder) {
+      await WorkflowModule.buildQueue(() => builder.build());
+    }
   }
 
   async onModuleDestroy() {
-    await closeWorld();
-    setRuntimeWorkflowConfig(undefined);
+    // Cleanup if needed
+    WorkflowModule.builder = null;
   }
 }

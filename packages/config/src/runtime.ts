@@ -1,3 +1,4 @@
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 
 const RuntimeWorkflowConfigSymbol = Symbol.for('@workflow/config/runtime');
@@ -14,4 +15,5 @@ export function setRuntimeWorkflowConfig(
   config: RuntimeWorkflowConfig | undefined
 ): void {
   globals[RuntimeWorkflowConfigSymbol] = config;
+  setWorkflowQueueNamespace(config?.queue?.namespace);
 }

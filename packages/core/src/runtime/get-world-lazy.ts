@@ -38,8 +38,12 @@ export async function getWorldLazy(): Promise<World> {
   const g = globalThis as any;
   if (g[WorldCacheKey]) return g[WorldCacheKey];
   if (g[WorldCachePromiseKey]) {
-    g[WorldCacheKey] = await g[WorldCachePromiseKey];
-    return g[WorldCacheKey];
+    const pendingWorld = g[WorldCachePromiseKey];
+    const world = await pendingWorld;
+    if (g[WorldCachePromiseKey] === pendingWorld) {
+      g[WorldCacheKey] = world;
+    }
+    return world;
   }
   // If world.ts is statically present in this bundle, it has registered
   // getWorld on globalThis at module load. Prefer that over the dynamic
