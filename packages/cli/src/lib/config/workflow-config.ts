@@ -37,7 +37,9 @@ export const getWorkflowConfig = async (
   });
   const fileConfig = loadedConfig.config;
   const config: WorkflowConfig = {
-    dirs: fileConfig.build?.dirs ?? ['./workflows'],
+    dirs:
+      fileConfig.build?.dirs ??
+      (buildTarget === 'standalone' ? ['.'] : ['./workflows']),
     workingDir,
     projectRoot: fileConfig.build?.projectRoot
       ? resolve(workingDir, fileConfig.build.projectRoot)
