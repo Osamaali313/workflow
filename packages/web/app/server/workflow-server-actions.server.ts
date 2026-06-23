@@ -80,6 +80,8 @@ function getBackendDisplayName(targetWorld: string | undefined): string {
       return 'Local';
     case 'vercel':
       return 'Vercel';
+    case 'configured':
+      return 'Configured';
     case '@workflow/world-postgres':
     case 'postgres':
       return 'PostgreSQL';
@@ -98,6 +100,9 @@ function getEffectiveBackendId(): string {
   const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
   if (targetWorld) {
     return targetWorld;
+  }
+  if (workflowRunHelpers.usesConfiguredWorld()) {
+    return 'configured';
   }
   // Match @workflow/core/runtime defaulting: vercel if VERCEL_DEPLOYMENT_ID is set, else local.
   return process.env.VERCEL_DEPLOYMENT_ID ? 'vercel' : 'local';

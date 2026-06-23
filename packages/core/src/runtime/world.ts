@@ -30,6 +30,7 @@ const WorldLifecycleKey = Symbol.for('@workflow/world//lifecycle');
 
 type WorldLifecycle =
   | { status: 'managed' }
+  | { status: 'cleanup'; world: World }
   | { status: 'closing'; managed: boolean; promise: Promise<void> };
 
 const globalSymbols: typeof globalThis & {
@@ -40,6 +41,10 @@ const globalSymbols: typeof globalThis & {
 
 function getWorkflowConfig() {
   return boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
+}
+
+export function usesConfiguredWorld(): boolean {
+  return !process.env.WORKFLOW_TARGET_WORLD && !!getWorkflowConfig().world;
 }
 
 setWorkflowQueueNamespace(getWorkflowConfig().queue?.namespace);
@@ -194,6 +199,8 @@ export const getWorld = async (): Promise<World> => {
   const lifecycle = globalSymbols[WorldLifecycleKey];
   if (lifecycle?.status === 'closing') {
     await lifecycle.promise;
+  } else if (lifecycle?.status === 'cleanup') {
+    await closeWorld();
   }
 
   if (globalSymbols[WorldCache]) {
@@ -212,9 +219,20 @@ export const getWorld = async (): Promise<World> => {
         case 'configured':
           try {
             await resolved.world.start?.();
-          } catch (error) {
-            await resolved.world.close?.();
-            throw error;
+          } catch (startError) {
+            try {
+              await resolved.world.close?.();
+            } catch (closeError) {
+              globalSymbols[WorldLifecycleKey] = {
+                status: 'cleanup',
+                world: resolved.world,
+              };
+              throw new AggregateError(
+                [startError, closeError],
+                'World startup and cleanup failed.'
+              );
+            }
+            throw startError;
           }
           return resolved.world;
         case 'legacy':
@@ -253,7 +271,7 @@ export const setWorld = (world: World | undefined): void => {
     'Cannot replace a World while it is closing.'
   );
   assert(
-    lifecycle?.status !== 'managed',
+    lifecycle?.status !== 'managed' && lifecycle?.status !== 'cleanup',
     'Call await closeWorld() before replacing a managed World.'
   );
 
@@ -261,6 +279,24 @@ export const setWorld = (world: World | undefined): void => {
   globalSymbols[WorldCachePromise] = undefined;
   globalSymbols[WorldLifecycleKey] = undefined;
 };
+
+function restoreLifecycleAfterCloseFailure(
+  cleanupWorld: World | undefined,
+  managed: boolean
+): void {
+  if (cleanupWorld) {
+    globalSymbols[WorldLifecycleKey] = {
+      status: 'cleanup',
+      world: cleanupWorld,
+    };
+    return;
+  }
+
+  globalSymbols[WorldLifecycleKey] =
+    managed && (globalSymbols[WorldCache] || globalSymbols[WorldCachePromise])
+      ? { status: 'managed' }
+      : undefined;
+}
 
 /**
  * Close the cached World without creating one just for cleanup.
@@ -270,12 +306,17 @@ export const closeWorld = async (): Promise<void> => {
   if (lifecycle?.status === 'closing') return lifecycle.promise;
 
   const cachedWorld = globalSymbols[WorldCache];
-  const worldPromise = cachedWorld
-    ? Promise.resolve(cachedWorld)
-    : globalSymbols[WorldCachePromise];
+  const cleanupWorld =
+    lifecycle?.status === 'cleanup' ? lifecycle.world : undefined;
+  const worldPromise = cleanupWorld
+    ? Promise.resolve(cleanupWorld)
+    : cachedWorld
+      ? Promise.resolve(cachedWorld)
+      : globalSymbols[WorldCachePromise];
   if (!worldPromise) return;
 
-  const managed = lifecycle?.status === 'managed';
+  const managed =
+    lifecycle?.status === 'managed' || lifecycle?.status === 'cleanup';
   const closePromise = (async () => {
     try {
       const world = await worldPromise;
@@ -284,11 +325,9 @@ export const closeWorld = async (): Promise<void> => {
       globalSymbols[WorldCachePromise] = undefined;
       globalSymbols[WorldLifecycleKey] = undefined;
     } catch (error) {
-      globalSymbols[WorldLifecycleKey] =
-        managed &&
-        (globalSymbols[WorldCache] || globalSymbols[WorldCachePromise])
-          ? { status: 'managed' }
-          : undefined;
+      if (globalSymbols[WorldLifecycleKey]?.status === 'closing') {
+        restoreLifecycleAfterCloseFailure(cleanupWorld, managed);
+      }
       throw error;
     }
   })();

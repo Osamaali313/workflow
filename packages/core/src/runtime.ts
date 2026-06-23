@@ -119,6 +119,7 @@ export {
   getWorld,
   getWorldHandlers,
   setWorld,
+  usesConfiguredWorld,
 } from './runtime/world.js';
 
 function getWorkflowSetupErrorCode(err: unknown): RunErrorCode | null {

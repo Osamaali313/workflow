@@ -3,7 +3,13 @@ import type { World } from '@workflow/world';
 import { resolveQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getWorldLazy } from './get-world-lazy.js';
-import { closeWorld, getWorld, getWorldHandlers, setWorld } from './world.js';
+import {
+  closeWorld,
+  getWorld,
+  getWorldHandlers,
+  setWorld,
+  usesConfiguredWorld,
+} from './world.js';
 
 const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
 
@@ -68,10 +74,40 @@ describe('configured World', () => {
       .mockReturnValueOnce(second);
     setRuntimeWorkflowConfig({ world: create });
 
+    expect(usesConfiguredWorld()).toBe(true);
     await expect(getWorld()).rejects.toThrow('startup failed');
     expect(firstClose).toHaveBeenCalledOnce();
     await expect(getWorld()).resolves.toBe(second);
     expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires failed startup cleanup before creating a replacement', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    const firstClose = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('close failed'))
+      .mockResolvedValueOnce(undefined);
+    const first = {
+      start: vi.fn().mockRejectedValue(new Error('startup failed')),
+      close: firstClose,
+    } as unknown as World;
+    const second = {
+      start: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+    } as unknown as World;
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+    setRuntimeWorkflowConfig({ world: create });
+
+    await expect(getWorld()).rejects.toThrow(
+      'World startup and cleanup failed.'
+    );
+    expect(create).toHaveBeenCalledOnce();
+    await closeWorld();
+    expect(firstClose).toHaveBeenCalledTimes(2);
+    await expect(getWorld()).resolves.toBe(second);
   });
 
   it('rejects a configured provider that returns no World', async () => {
