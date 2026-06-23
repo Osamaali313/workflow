@@ -23,9 +23,9 @@ export const setupCliWorld = async (
     verbose: boolean;
     backend?: string;
     env?: string;
-    authToken: string;
-    project: string;
-    team: string;
+    authToken?: string;
+    project?: string;
+    team?: string;
     port?: number;
   },
   version: string,
@@ -101,7 +101,8 @@ export const setupCliWorld = async (
     // Seed the initial flags into process.env so inferVercelEnvVars() can
     // read them via getEnvVars() as starting values before inference.
     writeEnvVars({
-      WORKFLOW_VERCEL_ENV: flags.env,
+      WORKFLOW_VERCEL_ENV:
+        flags.env ?? process.env.WORKFLOW_VERCEL_ENV ?? 'production',
       WORKFLOW_VERCEL_AUTH_TOKEN: flags.authToken,
       WORKFLOW_VERCEL_PROJECT: flags.project,
       WORKFLOW_VERCEL_TEAM: flags.team,

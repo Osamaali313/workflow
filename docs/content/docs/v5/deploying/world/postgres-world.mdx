@@ -93,8 +93,64 @@ The migration is idempotent and can safely be run as a post-deployment lifecycle
 ## Starting the World
 
 Workflow calls `start()` once, immediately before the configured World is first
-used. If you construct a Postgres World outside the provider, call `start()`
-yourself during server initialization.
+used. Because the Postgres worker must also recover queued work after a process
+restart, resolve it during server startup rather than waiting for the first
+request.
+
+<Tabs items={["Next.js", "SvelteKit", "Nitro"]}>
+
+<Tab value="Next.js">
+
+```typescript title="instrumentation.ts" lineNumbers
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "edge") {
+    const { getWorld } = await import("workflow/runtime");
+    await getWorld();
+  }
+}
+```
+
+</Tab>
+
+<Tab value="SvelteKit">
+
+```typescript title="src/hooks.server.ts" lineNumbers
+import type { ServerInit } from "@sveltejs/kit";
+
+export const init: ServerInit = async () => {
+  const { getWorld } = await import("workflow/runtime");
+  await getWorld();
+};
+```
+
+</Tab>
+
+<Tab value="Nitro">
+
+```typescript title="plugins/start-postgres-world.ts" lineNumbers
+import { defineNitroPlugin } from "nitro/~internal/runtime/plugin";
+
+export default defineNitroPlugin(async () => {
+  const { getWorld } = await import("workflow/runtime");
+  await getWorld();
+});
+```
+
+```typescript title="nitro.config.ts" lineNumbers
+import { defineConfig } from "nitro";
+
+export default defineConfig({
+  modules: ["workflow/nitro"],
+  plugins: ["plugins/start-postgres-world.ts"],
+});
+```
+
+</Tab>
+
+</Tabs>
+
+If you construct a Postgres World outside a provider, call `start()` yourself
+during server initialization.
 
 <Callout type="info">
 The Postgres World requires a long-lived worker process that polls the database for jobs. This does not work on serverless environments. For Vercel deployments, use the [Vercel World](/docs/deploying/world/vercel-world) instead.

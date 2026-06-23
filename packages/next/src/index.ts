@@ -469,8 +469,17 @@ export function withWorkflow(
       )
         ? nextConfig.turbopack.resolveAlias
         : {};
+      const configuredRoot =
+        nextConfig.outputFileTracingRoot || nextConfig.turbopack.root;
+      const turbopackRoot = configuredRoot
+        ? resolve(configuredRoot)
+        : (
+            require('next/dist/lib/find-root') as {
+              findRootDirAndLockFiles(cwd: string): { rootDir: string };
+            }
+          ).findRootDirAndLockFiles(process.cwd()).rootDir;
       const runtimeConfigRequest = relative(
-        nextConfig.turbopack.root ?? process.cwd(),
+        turbopackRoot,
         runtimeConfigPath
       ).replaceAll('\\', '/');
       nextConfig.turbopack.resolveAlias = {

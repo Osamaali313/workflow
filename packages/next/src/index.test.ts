@@ -170,6 +170,35 @@ describe('withWorkflow builder config', () => {
     }
   });
 
+  it('resolves the runtime binding from Next.js detected root', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-root-'));
+    process.chdir(projectDir);
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `export default { world: './workflow.world.ts' };`
+    );
+    writeFile(
+      join(projectDir, 'workflow.world.ts'),
+      'export default () => {};'
+    );
+
+    try {
+      const config = withWorkflow({});
+      const resolvedConfig = await config('phase-production-build', {
+        defaultConfig: {},
+      });
+
+      expect(
+        (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
+          '@workflow/config/runtime-binding'
+        ]
+      ).toBe('./node_modules/.cache/workflow/runtime-config.mjs');
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
   it('configures diagnostics inside the default Next.js dist dir', async () => {
     const config = withWorkflow({});
 
@@ -315,15 +344,18 @@ describe('withWorkflow builder config', () => {
       expect(builderConfigs[0]?.externalPackages).toContain(
         'configured-external'
       );
+      const runtimeConfigRequest = relative(
+        '/explicit-root',
+        join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
+      ).replaceAll('\\', '/');
       expect(
         (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
           '@workflow/config/runtime-binding'
         ]
       ).toBe(
-        `./${relative(
-          turbopackRoot,
-          join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
-        ).replaceAll('\\', '/')}`
+        runtimeConfigRequest.startsWith('.')
+          ? runtimeConfigRequest
+          : `./${runtimeConfigRequest}`
       );
     } finally {
       process.chdir(originalCwd);

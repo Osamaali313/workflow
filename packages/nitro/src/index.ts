@@ -11,6 +11,8 @@ import type { ModuleOptions } from './types';
 
 export type { ModuleOptions };
 
+const RUNTIME_CONFIG_PLUGIN_ID = '#workflow/runtime-config';
+
 /**
  * Detect whether the Nitro instance is v2.
  * Newer Nitro releases (both v2 and v3) expose `nitro.meta.majorVersion`.
@@ -96,6 +98,13 @@ export const nitroModule = {
       namespace:
         process.env.WORKFLOW_QUEUE_NAMESPACE ?? workflowConfig.queue?.namespace,
     });
+    if (runtimeConfigPath) {
+      nitro.options.virtual[RUNTIME_CONFIG_PLUGIN_ID] = `
+        import "@workflow/config/runtime-binding";
+        export default () => {};
+      `;
+      nitro.options.plugins.unshift(RUNTIME_CONFIG_PLUGIN_ID);
+    }
     const isVercelDeploy =
       !nitro.options.dev && nitro.options.preset === 'vercel';
 
@@ -309,8 +318,7 @@ export const nitroModule = {
       addVirtualHandler(
         nitro,
         '/.well-known/workflow/v1/webhook/:token',
-        'workflow/webhook.mjs',
-        runtimeConfigPath !== undefined
+        'workflow/webhook.mjs'
       );
 
       // V2: single combined handler for both workflow and step execution.
@@ -319,8 +327,7 @@ export const nitroModule = {
       addVirtualHandler(
         nitro,
         '/.well-known/workflow/v1/flow',
-        'workflow/workflows.mjs',
-        runtimeConfigPath !== undefined
+        'workflow/workflows.mjs'
       );
 
       // Nitro v3+ Vercel deploy: configure function rules for the combined
@@ -468,8 +475,7 @@ type VirtualHandlerPath = 'workflow/webhook.mjs' | 'workflow/workflows.mjs';
 function addVirtualHandler(
   nitro: Nitro,
   route: string,
-  buildPath: VirtualHandlerPath,
-  hasRuntimeConfig: boolean
+  buildPath: VirtualHandlerPath
 ) {
   nitro.options.handlers.push({
     route,
@@ -485,12 +491,6 @@ function addVirtualHandler(
     'workflow/webhook.mjs': '',
     'workflow/workflows.mjs': `await import(/* @vite-ignore */ pathToFileURL(${stepsImportPath}).href + "?t=" + version);`,
   };
-  const runtimeConfigSetup = hasRuntimeConfig
-    ? `
-      import "@workflow/config/runtime-binding";
-    `
-    : '';
-
   if (nitro.options.dev) {
     // Dev mode: load generated workflow bundles from disk at request time.
     // This keeps `.nitro/workflow/*.mjs` out of Nitro's own bundle graph,
@@ -501,8 +501,6 @@ function addVirtualHandler(
       import { fromWebHandler } from "h3";
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
-      ${runtimeConfigSetup}
-
       const handlerPath = ${handlerImportPath};
       let currentVersion = "";
       let currentImportPath = "";
@@ -526,8 +524,6 @@ function addVirtualHandler(
       nitro.options.virtual[`#${buildPath}`] = /* js */ `
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
-      ${runtimeConfigSetup}
-
       const handlerPath = ${handlerImportPath};
       let currentVersion = "";
       let currentImportPath = "";
@@ -564,7 +560,6 @@ function addVirtualHandler(
   if (!nitro.routing) {
     // Nitro v2 (legacy)
     nitro.options.virtual[`#${buildPath}`] = /* js */ `
-    ${runtimeConfigSetup}
     import ${handlerImportPath};
     import { fromWebHandler } from "h3";
     import { POST } from ${handlerImportPath};
@@ -573,7 +568,6 @@ function addVirtualHandler(
   } else {
     // Nitro v3+ (native web handlers)
     nitro.options.virtual[`#${buildPath}`] = /* js */ `
-    ${runtimeConfigSetup}
     import ${handlerImportPath};
     import { POST } from ${handlerImportPath};
     export default async ({ req }) => {

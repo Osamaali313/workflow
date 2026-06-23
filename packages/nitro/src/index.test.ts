@@ -61,6 +61,7 @@ function createNitroStub({
       dev,
       externals: externals ?? {},
       handlers: [],
+      plugins: [],
       preset,
       rootDir,
       typescript: {},
@@ -146,7 +147,7 @@ describe('@workflow/nitro virtual handlers', () => {
     expect(source).not.toContain('@workflow/config');
   });
 
-  it('imports runtime config before unbundled dev routes', async () => {
+  it('installs runtime config as a Nitro plugin', async () => {
     const project = createProject('export default {};');
     const nitro = createNitroStub({
       routing: false,
@@ -156,11 +157,9 @@ describe('@workflow/nitro virtual handlers', () => {
 
     await nitroModule.setup(nitro);
 
-    const source = nitro.options.virtual['#workflow/workflows.mjs'];
-    const binding = 'import "@workflow/config/runtime-binding";';
-    expect(source).toContain(binding);
-    expect(source.indexOf(binding)).toBeLessThan(
-      source.indexOf('import(currentImportPath)')
+    expect(nitro.options.plugins[0]).toBe('#workflow/runtime-config');
+    expect(nitro.options.virtual['#workflow/runtime-config']).toContain(
+      'import "@workflow/config/runtime-binding";'
     );
   });
 });
@@ -213,8 +212,7 @@ describe('@workflow/nitro workflow.config.ts', () => {
           handler.route === '/.well-known/workflow/v1/manifest.json'
       )
     ).toBe(true);
-    const source = nitro.options.virtual['#workflow/workflows.mjs'];
-    expect(source).toContain('import "@workflow/config/runtime-binding";');
+    expect(nitro.options.plugins).toContain('#workflow/runtime-config');
   });
 
   it('prefers environment variables over workflow.config.ts', async () => {
@@ -383,10 +381,14 @@ describe('@workflow/nitro Vercel functionRules', () => {
     // routes, so we must NOT touch functionRules — and we must register a
     // `compiled` hook that runs the VercelBuilder.
     const compiledHooks: Array<() => void> = [];
+    const project = createProject(
+      `export default { queue: { namespace: 'legacy' } };`
+    );
     const nitro = createNitroStub({
       routing: false,
       majorVersion: 2,
       preset: 'vercel',
+      rootDir: project,
     });
     nitro.hooks.hook = (name: string, fn: () => void) => {
       if (name === 'compiled') compiledHooks.push(fn);
@@ -396,6 +398,7 @@ describe('@workflow/nitro Vercel functionRules', () => {
 
     expect(nitro.options.vercel?.functionRules ?? {}).toEqual({});
     expect(compiledHooks.length).toBe(1);
+    expect(nitro.options.plugins).toContain('#workflow/runtime-config');
   });
 });
 

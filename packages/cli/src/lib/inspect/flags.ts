@@ -42,7 +42,6 @@ export const cliFlags = {
     required: false,
     char: 'a',
     dependsOn: ['backend'],
-    default: '',
     env: 'WORKFLOW_VERCEL_AUTH_TOKEN',
     helpGroup: 'Target',
     helpLabel: '-a, --authToken',
@@ -52,7 +51,6 @@ export const cliFlags = {
     description:
       'If backend is vercel, the vercel project to authenticate against',
     required: false,
-    default: '',
     dependsOn: ['backend'],
     env: 'WORKFLOW_VERCEL_PROJECT',
     helpGroup: 'Target',
@@ -64,7 +62,6 @@ export const cliFlags = {
       'If backend is vercel, the vercel team to authenticate against',
     required: false,
     dependsOn: ['backend'],
-    default: '',
     env: 'WORKFLOW_VERCEL_TEAM',
     helpGroup: 'Target',
     helpLabel: '--team',
