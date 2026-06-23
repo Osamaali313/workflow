@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
-import { setWorld } from '@workflow/core/runtime';
+import { closeWorld } from '@workflow/core/runtime';
 import type { World } from '@workflow/world';
 import { resolveQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -16,9 +16,11 @@ const project = mkdtempSync(join(tmpdir(), 'workflow-cli-world-'));
 const originalCwd = process.env.WORKFLOW_OBSERVABILITY_CWD;
 const originalTarget = process.env.WORKFLOW_TARGET_WORLD;
 
-afterEach(() => {
-  setWorld(undefined);
+afterEach(async () => {
+  await closeWorld();
   setRuntimeWorkflowConfig(undefined);
+  delete (globalThis as { __workflowCliWorldStarted?: boolean })
+    .__workflowCliWorldStarted;
   if (originalCwd === undefined) {
     delete process.env.WORKFLOW_OBSERVABILITY_CWD;
   } else {
@@ -42,7 +44,10 @@ it('uses the configured World instead of the implicit local default', async () =
   );
   writeFileSync(
     join(project, 'workflow.world.mjs'),
-    `export default () => ({ source: 'configured' });`
+    `export default () => ({
+      source: 'configured',
+      start() { globalThis.__workflowCliWorldStarted = true; }
+    });`
   );
   process.env.WORKFLOW_OBSERVABILITY_CWD = project;
   delete process.env.WORKFLOW_TARGET_WORLD;
@@ -60,6 +65,10 @@ it('uses the configured World instead of the implicit local default', async () =
   );
 
   expect((world as World & { source: string }).source).toBe('configured');
+  expect(
+    (globalThis as { __workflowCliWorldStarted?: boolean })
+      .__workflowCliWorldStarted
+  ).toBe(true);
   expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
   expect(resolveQueueNamespace()).toBe('configured');
 });

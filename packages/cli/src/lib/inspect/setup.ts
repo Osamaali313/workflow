@@ -1,8 +1,7 @@
 import { createRuntimeWorkflowConfig } from '@workflow/config/load';
 import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
-import { createWorld, setWorld } from '@workflow/core/runtime';
+import { getWorld, setWorld } from '@workflow/core/runtime';
 import { isVercelWorldTarget } from '@workflow/utils';
-import type { World } from '@workflow/world';
 import { createVercelWorld } from '@workflow/world-vercel';
 import chalk from 'chalk';
 import terminalLink from 'terminal-link';
@@ -134,11 +133,10 @@ export const setupCliWorld = async (
 
   logger.debug('Initializing world');
 
-  let world: World;
   if (vercelEnvVars) {
     // Build the Vercel world directly from the inferred config, rather than
     // relying on createWorld() reading process.env.
-    world = createVercelWorld({
+    const world = createVercelWorld({
       token: vercelEnvVars.token,
       projectConfig: {
         environment: vercelEnvVars.environment,
@@ -147,11 +145,9 @@ export const setupCliWorld = async (
         teamId: vercelEnvVars.teamId,
       },
     });
-  } else {
-    world = await createWorld();
+    setWorld(world);
+    return world;
   }
 
-  // Store in the global cache so BaseCommand.finally() can find and close it.
-  setWorld(world);
-  return world;
+  return getWorld();
 };

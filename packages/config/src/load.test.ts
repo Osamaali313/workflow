@@ -190,6 +190,21 @@ export default () => ({});
     );
   });
 
+  it.each([
+    'file:///tmp/world.mjs',
+    'data:text/javascript,export default () => ({})',
+    'node:fs',
+    'C:\\world.mjs',
+  ])('rejects non-package World specifier %s', async (world) => {
+    const project = createProject({
+      'workflow.config.ts': `export default { world: ${JSON.stringify(world)} };`,
+    });
+
+    await expect(loadWorkflowConfig({ cwd: project })).rejects.toThrow(
+      'World module must be a relative path or package specifier'
+    );
+  });
+
   it('rejects multiple config files in one directory', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['typescript'] } };`,

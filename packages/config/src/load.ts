@@ -14,6 +14,7 @@ import {
   join,
   relative,
   resolve,
+  win32,
 } from 'node:path';
 import type { WorldProvider } from '@workflow/world';
 import { findUp } from 'find-up';
@@ -116,7 +117,10 @@ export async function loadWorkflowConfig(
   const runtimeDir = join(dirname(path), 'node_modules', '.cache', 'workflow');
   let world = config.world;
   assert(
-    !world || !isAbsolute(world),
+    !world ||
+      (!isAbsolute(world) &&
+        !win32.isAbsolute(world) &&
+        !/^[a-z][a-z\d+.-]*:/i.test(world)),
     `World module must be a relative path or package specifier: ${world}`
   );
   if (world?.startsWith('.')) {
