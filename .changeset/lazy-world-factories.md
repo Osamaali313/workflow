@@ -1,6 +1,7 @@
 ---
 "@workflow/config": minor
 "@workflow/world": minor
+"@workflow/world-local": patch
 "@workflow/world-postgres": patch
 ---
 

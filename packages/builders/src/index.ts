@@ -50,6 +50,8 @@ export {
 } from './transform-utils.js';
 export type {
   AstroConfig,
+  BaseBuilderConfig,
+  BuilderConfig,
   BuildTarget,
   NextConfig,
   StandaloneConfig,

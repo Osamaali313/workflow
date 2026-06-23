@@ -40,7 +40,11 @@ export type LoadWorkflowConfigOptions = {
 
 export type LoadedWorkflowConfig =
   | { path: undefined; runtimePath: undefined; config: WorkflowConfig }
-  | { path: string; runtimePath: string; config: WorkflowConfig };
+  | {
+      path: string;
+      runtimePath: string | undefined;
+      config: WorkflowConfig;
+    };
 
 type FoundWorkflowConfig = Extract<LoadedWorkflowConfig, { path: string }>;
 
@@ -114,6 +118,10 @@ export async function loadWorkflowConfig(
     `${basename(path)} configures "${config.integration?.type}" but was loaded by "${options.integration}".`
   );
 
+  if (!config.world && !config.queue) {
+    return { path, runtimePath: undefined, config };
+  }
+
   const runtimeDir = join(dirname(path), 'node_modules', '.cache', 'workflow');
   let world = config.world;
   assert(
@@ -139,13 +147,10 @@ export async function loadWorkflowConfig(
   const worldFactory = world
     ? `async () => { const provider = (await import(${JSON.stringify(world)})).default; return provider(); }`
     : 'undefined';
-  const namespace =
-    process.env.WORKFLOW_QUEUE_NAMESPACE ?? config.queue?.namespace;
-  const queue = namespace === undefined ? undefined : { namespace };
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nglobalThis[Symbol.for('@workflow/queue/namespace')] = config.queue?.namespace;\nexport default config;\n`
+    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
   );
 
   return { path, runtimePath, config };

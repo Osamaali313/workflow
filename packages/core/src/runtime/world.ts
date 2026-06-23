@@ -26,29 +26,17 @@ function getRuntimeRequire() {
 
 const WorldCache = Symbol.for('@workflow/world//cache');
 const WorldCachePromise = Symbol.for('@workflow/world//cachePromise');
-const ManagedWorldCache = Symbol.for('@workflow/world//managedCache');
-const ManagedWorldCachePromise = Symbol.for(
-  '@workflow/world//managedCachePromise'
-);
-const WorldClosePromise = Symbol.for('@workflow/world//closePromise');
-const WorldGeneration = Symbol.for('@workflow/world//generation');
+const WorldLifecycleKey = Symbol.for('@workflow/world//lifecycle');
+
+type WorldLifecycle =
+  | { status: 'managed' }
+  | { status: 'closing'; managed: boolean; promise: Promise<void> };
 
 const globalSymbols: typeof globalThis & {
   [WorldCache]?: World;
   [WorldCachePromise]?: Promise<World>;
-  [ManagedWorldCache]?: boolean;
-  [ManagedWorldCachePromise]?: boolean;
-  [WorldClosePromise]?: Promise<void>;
-  [WorldGeneration]?: number;
+  [WorldLifecycleKey]?: WorldLifecycle;
 } = globalThis;
-
-export function getWorldGeneration(): number {
-  return globalSymbols[WorldGeneration] ?? 0;
-}
-
-function advanceWorldGeneration(): void {
-  globalSymbols[WorldGeneration] = getWorldGeneration() + 1;
-}
 
 function getWorkflowConfig() {
   return boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
@@ -200,18 +188,12 @@ export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
  * factory is never called by config loading or the build integrations; this
  * path is reached only when host runtime code asks for a handler.
  */
-export const getWorldHandlers = async (): Promise<WorldHandlers> => {
-  const world = await getWorld();
-  return {
-    createQueueHandler: world.createQueueHandler,
-    specVersion: world.specVersion,
-  };
-};
+export const getWorldHandlers = (): Promise<WorldHandlers> => getWorld();
 
 export const getWorld = async (): Promise<World> => {
-  const closingWorld = globalSymbols[WorldClosePromise];
-  if (closingWorld) {
-    await closingWorld;
+  const lifecycle = globalSymbols[WorldLifecycleKey];
+  if (lifecycle?.status === 'closing') {
+    await lifecycle.promise;
   }
 
   if (globalSymbols[WorldCache]) {
@@ -220,8 +202,11 @@ export const getWorld = async (): Promise<World> => {
 
   let pendingWorld = globalSymbols[WorldCachePromise];
   if (!pendingWorld) {
-    globalSymbols[ManagedWorldCachePromise] =
+    const managed =
       !process.env.WORKFLOW_TARGET_WORLD && !!getWorkflowConfig().world;
+    globalSymbols[WorldLifecycleKey] = managed
+      ? { status: 'managed' }
+      : undefined;
     pendingWorld = resolveWorld().then(async (resolved) => {
       switch (resolved.type) {
         case 'configured':
@@ -241,23 +226,20 @@ export const getWorld = async (): Promise<World> => {
     });
     globalSymbols[WorldCachePromise] = pendingWorld;
   }
-  const pendingWorldIsManaged =
-    globalSymbols[ManagedWorldCachePromise] ?? false;
 
   try {
     const world = await pendingWorld;
     if (globalSymbols[WorldCachePromise] === pendingWorld) {
       globalSymbols[WorldCache] = world;
-      globalSymbols[ManagedWorldCache] = pendingWorldIsManaged;
       globalSymbols[WorldCachePromise] = undefined;
-      globalSymbols[ManagedWorldCachePromise] = undefined;
-      advanceWorldGeneration();
     }
     return world;
   } catch (error) {
     if (globalSymbols[WorldCachePromise] === pendingWorld) {
       globalSymbols[WorldCachePromise] = undefined;
-      globalSymbols[ManagedWorldCachePromise] = undefined;
+      if (globalSymbols[WorldLifecycleKey]?.status === 'managed') {
+        globalSymbols[WorldLifecycleKey] = undefined;
+      }
     }
     throw error;
   }
@@ -265,54 +247,57 @@ export const getWorld = async (): Promise<World> => {
 
 /** Override or clear an unmanaged cached World. */
 export const setWorld = (world: World | undefined): void => {
+  const lifecycle = globalSymbols[WorldLifecycleKey];
   assert(
-    !globalSymbols[WorldClosePromise],
+    lifecycle?.status !== 'closing',
     'Cannot replace a World while it is closing.'
   );
   assert(
-    !globalSymbols[ManagedWorldCache] &&
-      !globalSymbols[ManagedWorldCachePromise],
+    lifecycle?.status !== 'managed',
     'Call await closeWorld() before replacing a managed World.'
   );
 
   globalSymbols[WorldCache] = world;
   globalSymbols[WorldCachePromise] = undefined;
-  globalSymbols[ManagedWorldCache] = undefined;
-  globalSymbols[ManagedWorldCachePromise] = undefined;
-  advanceWorldGeneration();
+  globalSymbols[WorldLifecycleKey] = undefined;
 };
 
 /**
  * Close the cached World without creating one just for cleanup.
  */
 export const closeWorld = async (): Promise<void> => {
-  if (globalSymbols[WorldClosePromise]) {
-    return globalSymbols[WorldClosePromise];
-  }
+  const lifecycle = globalSymbols[WorldLifecycleKey];
+  if (lifecycle?.status === 'closing') return lifecycle.promise;
 
   const cachedWorld = globalSymbols[WorldCache];
-  const pendingWorld = globalSymbols[WorldCachePromise];
-  const closePromise = (async () => {
-    const world =
-      cachedWorld ?? (pendingWorld ? await pendingWorld : undefined);
-    await world?.close?.();
-  })();
-  globalSymbols[WorldClosePromise] = closePromise;
+  const worldPromise = cachedWorld
+    ? Promise.resolve(cachedWorld)
+    : globalSymbols[WorldCachePromise];
+  if (!worldPromise) return;
 
-  try {
-    await closePromise;
-    if (globalSymbols[WorldClosePromise] === closePromise) {
+  const managed = lifecycle?.status === 'managed';
+  const closePromise = (async () => {
+    try {
+      const world = await worldPromise;
+      await world.close?.();
       globalSymbols[WorldCache] = undefined;
       globalSymbols[WorldCachePromise] = undefined;
-      globalSymbols[ManagedWorldCache] = undefined;
-      globalSymbols[ManagedWorldCachePromise] = undefined;
-      advanceWorldGeneration();
+      globalSymbols[WorldLifecycleKey] = undefined;
+    } catch (error) {
+      globalSymbols[WorldLifecycleKey] =
+        managed &&
+        (globalSymbols[WorldCache] || globalSymbols[WorldCachePromise])
+          ? { status: 'managed' }
+          : undefined;
+      throw error;
     }
-  } finally {
-    if (globalSymbols[WorldClosePromise] === closePromise) {
-      globalSymbols[WorldClosePromise] = undefined;
-    }
-  }
+  })();
+  globalSymbols[WorldLifecycleKey] = {
+    status: 'closing',
+    managed,
+    promise: closePromise,
+  };
+  return closePromise;
 };
 
 // Register getWorld on globalThis so getWorldLazy can call it directly when

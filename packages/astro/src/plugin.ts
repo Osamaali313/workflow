@@ -1,4 +1,5 @@
 import { createBuildQueue } from '@workflow/builders';
+import type { SourcemapMode } from '@workflow/config';
 import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
@@ -12,13 +13,16 @@ export interface WorkflowPluginOptions {
    * `'linked'`, `'external'`, `'both'`, or `false` to omit source maps. Can
    * also be set via the `WORKFLOW_SOURCEMAP` environment variable.
    */
-  sourcemap?: boolean | 'inline' | 'linked' | 'external' | 'both';
+  sourcemap?: SourcemapMode;
 }
 
 export function workflowPlugin(
   options: WorkflowPluginOptions = {}
 ): AstroIntegration {
-  const workflowConfig = loadWorkflowConfig({ cwd: process.cwd() });
+  const workflowConfig = loadWorkflowConfig({
+    cwd: process.cwd(),
+    integration: 'astro',
+  });
   let builder: LocalBuilder;
   const enqueue = createBuildQueue();
 

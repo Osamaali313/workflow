@@ -147,8 +147,10 @@ describe('@workflow/nitro virtual handlers', () => {
     expect(source).not.toContain('@workflow/config');
   });
 
-  it('installs runtime config as a Nitro plugin', async () => {
-    const project = createProject('export default {};');
+  it('installs configured runtime values as a Nitro plugin', async () => {
+    const project = createProject(
+      `export default { queue: { namespace: 'app' } };`
+    );
     const nitro = createNitroStub({
       routing: false,
       dev: true,

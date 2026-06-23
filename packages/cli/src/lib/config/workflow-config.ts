@@ -6,6 +6,11 @@ import {
 import { config as loadDotEnv } from 'dotenv';
 import type { BuildTarget, WorkflowConfig } from './types.js';
 
+type CliBuildTarget = Extract<
+  BuildTarget,
+  'standalone' | 'vercel-build-output-api'
+>;
+
 export function resolveWorkflowCwd(): string {
   const raw = process.env.WORKFLOW_OBSERVABILITY_CWD;
   if (!raw) {
@@ -25,35 +30,32 @@ export async function loadProjectWorkflowConfig(
   return loadWorkflowConfig({ cwd, configFile });
 }
 
-export const getWorkflowConfig = async (
-  options: {
-    buildTarget?: BuildTarget;
-    workflowManifest?: string;
-    configFile?: string;
-  } = {}
-): Promise<WorkflowConfig> => {
-  const { buildTarget = 'standalone', workflowManifest, configFile } = options;
+export const getWorkflowConfig = async (options: {
+  buildTarget: CliBuildTarget;
+  workflowManifest?: string;
+  configFile?: string;
+}): Promise<WorkflowConfig> => {
+  const { buildTarget, workflowManifest, configFile } = options;
   const workingDir = resolveWorkflowCwd();
   const loadedConfig = await loadProjectWorkflowConfig(configFile);
   const fileConfig = loadedConfig.config;
-  const config: WorkflowConfig = {
+  const config = {
     dirs:
       fileConfig.build?.dirs ??
       (buildTarget === 'standalone' ? ['.'] : ['./workflows']),
     workingDir,
-    projectRoot: fileConfig.build?.projectRoot
-      ? resolve(workingDir, fileConfig.build.projectRoot)
-      : undefined,
-    externalPackages: fileConfig.build?.externalPackages,
     workflowConfig: loadedConfig,
-    buildTarget,
-    stepsBundlePath: './.well-known/workflow/v1/step.mjs',
-    workflowsBundlePath: './.well-known/workflow/v1/flow.mjs',
-    webhookBundlePath: './.well-known/workflow/v1/webhook.mjs',
     workflowManifestPath: workflowManifest,
-
-    // WIP: generate a client library to easily execute workflows/steps
-    // clientBundlePath: './lib/generated/workflows.js',
   };
-  return config;
+  if (buildTarget === 'standalone') {
+    return {
+      ...config,
+      buildTarget,
+      stepsBundlePath: './.well-known/workflow/v1/step.mjs',
+      workflowsBundlePath: './.well-known/workflow/v1/flow.mjs',
+      webhookBundlePath: './.well-known/workflow/v1/webhook.mjs',
+    };
+  }
+
+  return { ...config, buildTarget };
 };

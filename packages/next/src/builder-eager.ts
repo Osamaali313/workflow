@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access, copyFile, mkdir, stat, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, join, relative, resolve } from 'node:path';
 import type {
   NextConfig as BuilderNextConfig,
@@ -70,11 +70,12 @@ export async function getNextBuilderEager() {
         });
 
         // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
+        const publicManifestDir = join(
+          this.config.workingDir,
+          'public/.well-known/workflow/v1'
+        );
+        await rm(join(publicManifestDir, 'manifest.json'), { force: true });
         if (this.shouldExposePublicManifest && manifestJson) {
-          const publicManifestDir = join(
-            this.config.workingDir,
-            'public/.well-known/workflow/v1'
-          );
           await mkdir(publicManifestDir, { recursive: true });
           if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
             await writeFile(join(publicManifestDir, '.gitignore'), '*');

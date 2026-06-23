@@ -160,6 +160,7 @@ describe('configured World', () => {
     await getWorld();
     const close = closeWorld();
     const replacement = getWorld();
+    const replacementAfterConcurrentClose = closeWorld().then(() => getWorld());
     expect(() => setWorld(second)).toThrow(
       'Cannot replace a World while it is closing.'
     );
@@ -168,6 +169,7 @@ describe('configured World', () => {
     finishClose();
     await close;
     await expect(replacement).resolves.toBe(second);
+    await expect(replacementAfterConcurrentClose).resolves.toBe(second);
     expect(create).toHaveBeenCalledTimes(2);
   });
 

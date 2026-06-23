@@ -4,7 +4,6 @@ import {
   VercelBuildOutputAPIBuilder,
 } from '@workflow/builders';
 import { BaseCommand } from '../base.js';
-import { type BuildTarget, isValidBuildTarget } from '../lib/config/types.js';
 import { getWorkflowConfig } from '../lib/config/workflow-config.js';
 
 export default class Build extends BaseCommand {
@@ -61,7 +60,10 @@ export default class Build extends BaseCommand {
     }
 
     // Validate build target
-    if (!isValidBuildTarget(buildTarget)) {
+    if (
+      buildTarget !== 'standalone' &&
+      buildTarget !== 'vercel-build-output-api'
+    ) {
       this.logWarn(
         `Invalid target "${buildTarget}". Using default "standalone".`
       );
@@ -69,10 +71,14 @@ export default class Build extends BaseCommand {
       buildTarget = 'standalone';
     }
 
-    this.logInfo(`Using target: ${buildTarget}`);
+    const target =
+      buildTarget === 'vercel-build-output-api'
+        ? 'vercel-build-output-api'
+        : 'standalone';
+    this.logInfo(`Using target: ${target}`);
 
     const config = await getWorkflowConfig({
-      buildTarget: buildTarget as BuildTarget,
+      buildTarget: target,
       workflowManifest: flags['workflow-manifest'],
       configFile: flags.config,
     });

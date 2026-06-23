@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BaseBuilder } from './base-builder.js';
-import type { SourcemapMode, StandaloneConfig } from './types.js';
+import type { NextConfig, SourcemapMode } from './types.js';
 
 /**
  * Minimal subclass that exposes the protected `resolveSourcemap()` and
@@ -32,13 +32,10 @@ function createBuilder(
   sourcemap?: SourcemapMode,
   options: { watch?: boolean; workflowSourcemap?: SourcemapMode } = {}
 ): TestBuilder {
-  const config: StandaloneConfig = {
-    buildTarget: 'standalone',
+  const config: NextConfig = {
+    buildTarget: 'next',
     workingDir: '/tmp/workflow-test',
     dirs: ['.'],
-    stepsBundlePath: '',
-    workflowsBundlePath: '',
-    webhookBundlePath: '',
     sourcemap,
     watch: options.watch,
     workflowConfig:

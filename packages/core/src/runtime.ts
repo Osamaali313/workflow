@@ -49,12 +49,7 @@ import {
 import { executeStep } from './runtime/step-executor.js';
 import { handleSuspension } from './runtime/suspension-handler.js';
 import { getWaitContinuationDispatch } from './runtime/wait-continuation.js';
-import {
-  getWorld,
-  getWorldGeneration,
-  getWorldHandlers,
-  type WorldHandlers,
-} from './runtime/world.js';
+import { getWorld, type WorldHandlers } from './runtime/world.js';
 import { dehydrateRunError } from './serialization.js';
 import { remapErrorStack } from './source-map.js';
 import {
@@ -952,7 +947,6 @@ export function workflowEntrypoint(
                   const encryptionKey = await getEncryptionKey();
 
                   // Main replay loop
-                  // biome-ignore lint/correctness/noConstantCondition: intentional loop
                   while (true) {
                     loopIteration++;
 
@@ -2026,7 +2020,7 @@ export function workflowEntrypoint(
     );
 
   let cachedHandler: ((req: Request) => Promise<Response>) | undefined;
-  let cachedWorldGeneration = -1;
+  let cachedWorld: World | undefined;
   let invocationCount = 0;
   const entrypointCreatedAt = Date.now();
   const routeModuleBodyInitMs =
@@ -2036,9 +2030,8 @@ export function workflowEntrypoint(
 
   return withHealthCheck(async (req) => {
     invocationCount += 1;
-    const worldGeneration = getWorldGeneration();
-    const handlerCached =
-      cachedHandler !== undefined && cachedWorldGeneration === worldGeneration;
+    const world = await getWorld();
+    const handlerCached = cachedHandler !== undefined && cachedWorld === world;
     const spanKind = await getSpanKind('SERVER');
 
     return trace(
@@ -2060,15 +2053,11 @@ export function workflowEntrypoint(
         },
       },
       async (span) => {
-        if (!cachedHandler || cachedWorldGeneration !== worldGeneration) {
-          cachedHandler = await trace('workflow.route.init', async () => {
-            const worldHandlers = await trace(
-              'workflow.route.get_world_handlers',
-              async () => getWorldHandlers()
-            );
-            return handler(worldHandlers);
-          });
-          cachedWorldGeneration = getWorldGeneration();
+        if (!cachedHandler || cachedWorld !== world) {
+          cachedHandler = await trace('workflow.route.init', async () =>
+            handler(world)
+          );
+          cachedWorld = world;
         }
 
         const response = await cachedHandler(req);

@@ -1,4 +1,5 @@
 import { createBuildQueue } from '@workflow/builders';
+import type { SourcemapMode } from '@workflow/config';
 import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
@@ -7,6 +8,7 @@ import { SvelteKitBuilder } from './builder.js';
 
 export const loadedWorkflowConfig = await loadWorkflowConfig({
   cwd: process.cwd(),
+  integration: 'sveltekit',
 });
 
 export interface WorkflowPluginOptions {
@@ -16,7 +18,7 @@ export interface WorkflowPluginOptions {
    * `'linked'`, `'external'`, `'both'`, or `false` to omit source maps. Can
    * also be set via the `WORKFLOW_SOURCEMAP` environment variable.
    */
-  sourcemap?: boolean | 'inline' | 'linked' | 'external' | 'both';
+  sourcemap?: SourcemapMode;
 }
 
 export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {

@@ -18,6 +18,7 @@ import {
   SPEC_VERSION_SUPPORTS_COMPRESSION,
   type Step,
   StepInvokePayloadSchema,
+  type World,
 } from '@workflow/world';
 import { describeError } from '../describe-error.js';
 import { runtimeLogger, stepLogger } from '../logger.js';
@@ -58,12 +59,7 @@ import {
   withHealthCheck,
 } from './helpers.js';
 import { safeWaitUntil } from './wait-until.js';
-import {
-  getWorld,
-  getWorldGeneration,
-  getWorldHandlers,
-  type WorldHandlers,
-} from './world.js';
+import { getWorld, type WorldHandlers } from './world.js';
 
 const DEFAULT_STEP_MAX_RETRIES = 3;
 
@@ -1166,12 +1162,13 @@ const stepHandler = createStepHandler();
  * for each step, this is temporary.
  */
 let cachedStepHandler: ((req: Request) => Promise<Response>) | undefined;
-let cachedWorldGeneration = -1;
+let cachedWorld: World | undefined;
 export const stepEntrypoint: (req: Request) => Promise<Response> =
   /* @__PURE__ */ withHealthCheck(async (req) => {
-    if (!cachedStepHandler || cachedWorldGeneration !== getWorldGeneration()) {
-      cachedStepHandler = stepHandler(await getWorldHandlers());
-      cachedWorldGeneration = getWorldGeneration();
+    const world = await getWorld();
+    if (!cachedStepHandler || cachedWorld !== world) {
+      cachedStepHandler = stepHandler(world);
+      cachedWorld = world;
     }
     return cachedStepHandler(req);
   });

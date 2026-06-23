@@ -11,8 +11,6 @@ Returns `createQueueHandler` and `specVersion` from the same managed
 [World](/docs/api-reference/workflow-runtime/world) as
 [`getWorld()`](/docs/api-reference/workflow-runtime/get-world). The first call
 resolves and caches the World, starting configured providers before returning.
-Generated route handlers call this lazily when they receive their first
-request.
 
 ```typescript lineNumbers
 import { getWorldHandlers } from "workflow/runtime";
@@ -38,7 +36,7 @@ type WorldHandlers = Pick<World, "createQueueHandler" | "specVersion">;
 ```
 
 <Callout type="warn">
-  This is SDK infrastructure used by framework adapters and the workflow entrypoint. Application code should use [`getWorld()`](/docs/api-reference/workflow-runtime/get-world) instead.
+  This is a low-level infrastructure API. Application code should use [`getWorld()`](/docs/api-reference/workflow-runtime/get-world) instead.
 </Callout>
 
 ## Related Functions

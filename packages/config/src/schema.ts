@@ -43,6 +43,7 @@ export const WorkflowConfigSchema = z.strictObject({
 });
 
 export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>;
-export type WorkflowIntegrationType = NonNullable<
-  WorkflowConfig['integration']
->['type'];
+export type WorkflowIntegrationType =
+  | NonNullable<WorkflowConfig['integration']>['type']
+  | 'astro'
+  | 'sveltekit';

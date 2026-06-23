@@ -1,8 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import type { LoadedWorkflowConfig } from '@workflow/config/load';
 import { findUp } from 'find-up';
 import JSON5 from 'json5';
-import type { SourcemapMode, WorkflowConfig } from './types.js';
+import type { BaseBuilderConfig } from './types.js';
 
 export interface DecoratorOptions {
   decorators: boolean;
@@ -86,31 +85,8 @@ export async function getDecoratorOptionsForDirectoryWithConfigPath(
   return { options, configPath };
 }
 
-/**
- * Creates a partial configuration for builders that don't use bundle paths directly.
- * Used by framework integrations like Nitro where the builder computes paths internally.
- */
-export function createBaseBuilderConfig(options: {
-  workingDir: string;
-  projectRoot?: string;
-  dirs?: string[];
-  watch?: boolean;
-  externalPackages?: string[];
-  runtime?: string;
-  sourcemap?: SourcemapMode;
-  workflowConfig?: LoadedWorkflowConfig;
-}): Omit<WorkflowConfig, 'buildTarget'> {
-  return {
-    dirs: options.dirs ?? ['workflows'],
-    projectRoot: options.projectRoot,
-    workingDir: options.workingDir,
-    watch: options.watch,
-    stepsBundlePath: '', // Not used by base builder methods
-    workflowsBundlePath: '', // Not used by base builder methods
-    webhookBundlePath: '', // Not used by base builder methods
-    externalPackages: options.externalPackages,
-    runtime: options.runtime,
-    sourcemap: options.sourcemap,
-    workflowConfig: options.workflowConfig,
-  };
+export function createBaseBuilderConfig(
+  config: BaseBuilderConfig
+): BaseBuilderConfig {
+  return config;
 }

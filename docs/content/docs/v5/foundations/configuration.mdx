@@ -30,8 +30,8 @@ const config = {
 export default config;
 ```
 
-The World module default-exports a lazy provider. Keep runtime credentials in
-this module or environment variables rather than the build configuration:
+The World module default-exports a lazy provider. Read runtime credentials from
+environment variables here rather than placing them in the build configuration:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import type { WorldProvider } from "workflow/config";
@@ -68,8 +68,8 @@ From highest to lowest priority:
 
 `world` is an optional path relative to `workflow.config.ts`, or a package
 specifier. Its module must default-export a `WorldProvider`. The module is
-bundled during the build, but the provider runs only when the application first
-needs its World.
+included in the runtime output, but the provider runs only when the application
+first needs its World.
 
 World selection follows this order:
 
@@ -133,16 +133,19 @@ database.
 | --- | --- | --- |
 | `build.dirs` | `string[]` | Directories to scan for workflow code |
 | `build.projectRoot` | `string` | Root for tracing, module resolution, and TypeScript configuration |
-| `build.externalPackages` | `string[]` | Packages excluded from generated bundles. Not supported by the direct `vercel-build-output-api` target |
+| `build.externalPackages` | `string[]` | Packages excluded from generated bundles. Direct Vercel Build Output API builds bundle all dependencies. |
 | `build.sourcemap` | `boolean \| "inline" \| "linked" \| "external" \| "both"` | Source map mode for generated bundles |
 | `build.manifest.public` | `boolean` | Expose the workflow manifest over HTTP |
 | `build.manifest.output` | `string` | Write the workflow manifest to this path |
 
 ## Queue Namespace
 
-`queue.namespace` prefixes generated workflow and step queues so multiple
-Workflow applications can share infrastructure without colliding. It must be
-lowercase alphanumeric and start with a letter.
+`queue.namespace` prefixes Workflow queue topics and generated deployment
+triggers. It must be lowercase alphanumeric and start with a letter.
+
+For Postgres Worlds that share a database, also give each application a unique
+`jobPrefix`. The namespace distinguishes Workflow topics; `jobPrefix`
+distinguishes the underlying Graphile Worker tasks.
 
 ## Integration Settings
 

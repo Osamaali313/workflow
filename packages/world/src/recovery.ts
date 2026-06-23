@@ -1,6 +1,5 @@
-import type { Queue } from './queue.js';
 import type { Storage } from './interfaces.js';
-import type { ValidQueueName } from './queue.js';
+import type { Queue, QueuePrefix, ValidQueueName } from './queue.js';
 
 /**
  * Re-enqueue all active (pending/running) workflow runs so they resume
@@ -9,12 +8,12 @@ import type { ValidQueueName } from './queue.js';
  *
  * @param runs - Storage runs interface for listing active runs
  * @param enqueue - Queue's enqueue method
- * @param label - Log prefix for identifying the world implementation (e.g. "world-local")
+ * @param workflowPrefix - Active workflow queue prefix
  */
 export async function reenqueueActiveRuns(
   runs: Storage['runs'],
   enqueue: Queue['queue'],
-  label: string
+  workflowPrefix: QueuePrefix
 ): Promise<void> {
   let reenqueued = 0;
   for (const status of ['pending', 'running'] as const) {
@@ -28,12 +27,13 @@ export async function reenqueueActiveRuns(
       });
       for (const run of page.data) {
         try {
-          const queueName: ValidQueueName = `__wkf_workflow_${run.workflowName}`;
+          const queueName =
+            `${workflowPrefix}${run.workflowName}` as ValidQueueName;
           await enqueue(queueName, { runId: run.runId });
           reenqueued++;
         } catch (err) {
           console.warn(
-            `[${label}] Failed to re-enqueue run ${run.runId}: ${err}`
+            `[workflow] Failed to re-enqueue run ${run.runId}: ${err}`
           );
         }
       }
@@ -43,7 +43,7 @@ export async function reenqueueActiveRuns(
   }
   if (reenqueued > 0) {
     console.log(
-      `[${label}] Re-enqueued ${reenqueued} active run(s) on startup`
+      `[workflow] Re-enqueued ${reenqueued} active run(s) on startup`
     );
   }
 }

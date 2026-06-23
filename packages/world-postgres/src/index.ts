@@ -1,5 +1,10 @@
 import type { Storage, World } from '@workflow/world';
-import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
+import {
+  getQueueTopicPrefix,
+  reenqueueActiveRuns,
+  resolveQueueNamespace,
+  SPEC_VERSION_CURRENT,
+} from '@workflow/world';
 import { Pool } from 'pg';
 import type { PostgresWorldConfig } from './config.js';
 import { createClient, type Drizzle } from './drizzle/index.js';
@@ -66,7 +71,11 @@ export function createWorld(
     }),
     async start() {
       await queue.start();
-      await reenqueueActiveRuns(storage.runs, queue.queue, 'world-postgres');
+      await reenqueueActiveRuns(
+        storage.runs,
+        queue.queue,
+        getQueueTopicPrefix('workflow', resolveQueueNamespace(config.namespace))
+      );
     },
     async close() {
       await streamer.close();

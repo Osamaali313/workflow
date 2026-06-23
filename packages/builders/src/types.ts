@@ -16,7 +16,7 @@ export type BuildTarget = (typeof validBuildTargets)[number];
 /**
  * Common configuration options shared across all builder types.
  */
-interface BaseWorkflowConfig {
+export interface BaseBuilderConfig {
   watch?: boolean;
   dirs: string[];
   workingDir: string;
@@ -95,7 +95,7 @@ interface BaseWorkflowConfig {
 /**
  * Configuration for standalone (CLI-based) builds.
  */
-export interface StandaloneConfig extends BaseWorkflowConfig {
+export interface StandaloneConfig extends BaseBuilderConfig {
   buildTarget: 'standalone';
   stepsBundlePath: string;
   workflowsBundlePath: string;
@@ -105,67 +105,50 @@ export interface StandaloneConfig extends BaseWorkflowConfig {
 /**
  * Configuration for Vercel Build Output API builds.
  */
-export interface VercelBuildOutputConfig extends BaseWorkflowConfig {
+export interface VercelBuildOutputConfig extends BaseBuilderConfig {
   buildTarget: 'vercel-build-output-api';
-  stepsBundlePath: string;
-  workflowsBundlePath: string;
-  webhookBundlePath: string;
 }
 
 /**
  * Configuration for Next.js builds.
  */
-export interface NextConfig extends BaseWorkflowConfig {
+export interface NextConfig extends BaseBuilderConfig {
   buildTarget: 'next';
-  // Next.js builder computes paths dynamically, so these are not used
-  stepsBundlePath: string;
-  workflowsBundlePath: string;
-  webhookBundlePath: string;
 }
 
 /**
  * Configuration for SvelteKit builds.
  */
-export interface SvelteKitConfig extends BaseWorkflowConfig {
+export interface SvelteKitConfig extends BaseBuilderConfig {
   buildTarget: 'sveltekit';
-  // SvelteKit builder computes paths dynamically, so these are not used
-  stepsBundlePath: string;
-  workflowsBundlePath: string;
-  webhookBundlePath: string;
 }
 
 /**
  * Configuration for Astro builds.
  */
-export interface AstroConfig extends BaseWorkflowConfig {
+export interface AstroConfig extends BaseBuilderConfig {
   buildTarget: 'astro';
-  // Astro builder computes paths dynamically, so these are not used
-  stepsBundlePath: string;
-  workflowsBundlePath: string;
-  webhookBundlePath: string;
 }
 
 /**
  * Configuration for NestJS builds.
  */
-export interface NestConfig extends BaseWorkflowConfig {
+export interface NestConfig extends BaseBuilderConfig {
   buildTarget: 'nest';
-  // NestJS builder computes paths dynamically, so these are not used
-  stepsBundlePath: string;
-  workflowsBundlePath: string;
-  webhookBundlePath: string;
 }
 
 /**
  * Discriminated union of all builder configuration types.
  */
-export type WorkflowConfig =
+export type BuilderConfig =
   | StandaloneConfig
   | VercelBuildOutputConfig
   | NextConfig
   | NestConfig
   | SvelteKitConfig
   | AstroConfig;
+
+export type WorkflowConfig = BuilderConfig;
 
 export function isValidBuildTarget(
   target: string | undefined

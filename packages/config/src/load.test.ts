@@ -69,20 +69,6 @@ describe('loadWorkflowConfig', () => {
     expect(getRuntimeWorkflowConfig()).toBe(runtime.default);
   });
 
-  it('uses the build environment namespace as the runtime fallback', async () => {
-    process.env.WORKFLOW_QUEUE_NAMESPACE = 'deployment';
-    const project = createProject({
-      'workflow.config.ts': `export default { queue: { namespace: 'app' } };`,
-    });
-    const loaded = await loadWorkflowConfig({ cwd: project });
-    const runtime = (await import(
-      pathToFileURL(loaded.runtimePath as string).href
-    )) as { default: RuntimeWorkflowConfig };
-
-    expect(loaded.config.queue).toEqual({ namespace: 'app' });
-    expect(runtime.default.queue).toEqual({ namespace: 'deployment' });
-  });
-
   it('loads the nearest TypeScript config without merging parents', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['parent'] } };`,
@@ -99,6 +85,7 @@ describe('loadWorkflowConfig', () => {
     });
 
     expect(loaded.path).toBe(join(app, 'workflow.config.ts'));
+    expect(loaded.runtimePath).toBeUndefined();
     expect(loaded.config).toEqual({
       build: { dirs: ['app'], sourcemap: false },
       integration: { type: 'next' },

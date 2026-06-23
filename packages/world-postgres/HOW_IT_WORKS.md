@@ -19,7 +19,7 @@ graph LR
     PG -.-> S["${prefix}steps<br/>(steps)"]
 ```
 
-Jobs include retry logic (3 attempts), idempotency keys, durable delayed rescheduling, and configurable worker concurrency (default: 10).
+Jobs include retry logic (3 attempts), idempotency keys, durable delayed rescheduling, and configurable worker concurrency (default: 50).
 
 ## Streaming
 

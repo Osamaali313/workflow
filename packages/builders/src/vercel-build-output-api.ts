@@ -1,16 +1,10 @@
-import assert from 'node:assert/strict';
-import { copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { BaseBuilder } from './base-builder.js';
 import { createWorkflowQueueTrigger } from './constants.js';
 
 export class VercelBuildOutputAPIBuilder extends BaseBuilder {
   async build(): Promise<void> {
-    assert(
-      !this.config.externalPackages?.length,
-      'build.externalPackages is not supported by the vercel-build-output-api target.'
-    );
-
     const outputDir = resolve(this.config.workingDir, '.vercel/output');
     const functionsDir = join(outputDir, 'functions');
     const workflowGeneratedDir = join(functionsDir, '.well-known/workflow/v1');
@@ -66,11 +60,9 @@ export class VercelBuildOutputAPIBuilder extends BaseBuilder {
 
     // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
     // Vercel Build Output API serves static files from .vercel/output/static/
+    const staticManifestDir = join(outputDir, 'static/.well-known/workflow/v1');
+    await rm(join(staticManifestDir, 'manifest.json'), { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
-      const staticManifestDir = join(
-        outputDir,
-        'static/.well-known/workflow/v1'
-      );
       await mkdir(staticManifestDir, { recursive: true });
       if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
         await writeFile(join(staticManifestDir, '.gitignore'), '*');

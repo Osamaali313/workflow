@@ -32,20 +32,11 @@ export class SvelteKitBuilder extends BaseBuilder {
       dirs: config.dirs ??
         build?.dirs ?? ['workflows', 'src/workflows', 'routes', 'src/routes'],
       buildTarget: 'sveltekit' as const,
-      stepsBundlePath: '', // unused in base
-      workflowsBundlePath: '', // unused in base
-      webhookBundlePath: '', // unused in base
       workingDir,
-      projectRoot:
-        config.projectRoot ??
-        (build?.projectRoot
-          ? resolve(workingDir, build.projectRoot)
-          : undefined),
       externalPackages: [
         ...SVELTEKIT_VIRTUAL_MODULES,
         ...(config.externalPackages ?? build?.externalPackages ?? []),
       ],
-      sourcemap: config.sourcemap,
     });
   }
 
@@ -113,11 +104,12 @@ export const POST = async ({request}) => {
 
     // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
     // SvelteKit serves files from static/ at the root URL.
+    const staticManifestDir = join(
+      this.config.workingDir,
+      'static/.well-known/workflow/v1'
+    );
+    await rm(join(staticManifestDir, 'manifest.json'), { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
-      const staticManifestDir = join(
-        this.config.workingDir,
-        'static/.well-known/workflow/v1'
-      );
       await mkdir(staticManifestDir, { recursive: true });
       if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
         await writeFile(join(staticManifestDir, '.gitignore'), '*');

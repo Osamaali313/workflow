@@ -6,7 +6,7 @@ import {
 } from '@workflow/builders';
 import type { LoadedWorkflowConfig } from '@workflow/config/load';
 import type { Nitro } from 'nitro/types';
-import { join, resolve } from 'pathe';
+import { join } from 'pathe';
 
 type NitroV2ExternalsOptions = { externals?: { external?: unknown[] } };
 
@@ -30,12 +30,8 @@ function createNitroBuilderConfig(
   return createBaseBuilderConfig({
     workingDir: nitro.options.rootDir,
     dirs: nitro.options.workflow?.dirs ?? build?.dirs ?? ['.'],
-    projectRoot: build?.projectRoot
-      ? resolve(nitro.options.rootDir, build.projectRoot)
-      : undefined,
     sourcemap: nitro.options.workflow?.sourcemap,
-    externalPackages:
-      externalPackages.length > 0 ? externalPackages : undefined,
+    externalPackages: externalPackages.length ? externalPackages : undefined,
     workflowConfig: loadedConfig,
   });
 }

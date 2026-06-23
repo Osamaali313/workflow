@@ -1,6 +1,7 @@
 import { BaseBuilder } from './base-builder.js';
+import type { StandaloneConfig } from './types.js';
 
-export class StandaloneBuilder extends BaseBuilder {
+export class StandaloneBuilder extends BaseBuilder<StandaloneConfig> {
   async build(): Promise<void> {
     const inputFiles = await this.getInputFiles();
     const tsconfigPath = await this.findTsConfigPath();

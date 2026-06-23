@@ -36,7 +36,7 @@ import { createNodeModuleErrorPlugin } from './node-module-esbuild-plugin.js';
 import { createPseudoPackagePlugin } from './pseudo-package-esbuild-plugin.js';
 import { createSwcPlugin } from './swc-esbuild-plugin.js';
 import { detectWorkflowPatterns } from './transform-utils.js';
-import type { SourcemapMode, WorkflowConfig } from './types.js';
+import type { BuilderConfig, SourcemapMode } from './types.js';
 import { extractWorkflowGraphs } from './workflows-extractor.js';
 
 const enhancedResolve = promisify(enhancedResolveOriginal);
@@ -215,8 +215,10 @@ function mergeWorkflowManifest(
  *
  * Subclasses must implement the build() method to define builder-specific logic.
  */
-export abstract class BaseBuilder {
-  protected config: WorkflowConfig;
+export abstract class BaseBuilder<
+  TConfig extends BuilderConfig = BuilderConfig,
+> {
+  protected config: TConfig;
 
   /**
    * Tracks which external packages have already been warned about
@@ -226,12 +228,17 @@ export abstract class BaseBuilder {
   private workflowBuildStartTime: number | undefined;
   private workflowBuildSummaryCount = 0;
 
-  constructor(config: WorkflowConfig) {
+  constructor(config: TConfig) {
     this.config = config;
   }
 
   protected get transformProjectRoot(): string {
-    return this.config.projectRoot || this.config.workingDir;
+    const projectRoot =
+      this.config.projectRoot ??
+      this.config.workflowConfig?.config.build?.projectRoot;
+    return projectRoot
+      ? resolve(this.config.workingDir, projectRoot)
+      : this.config.workingDir;
   }
 
   protected get moduleSpecifierRoot(): string {
@@ -242,6 +249,15 @@ export abstract class BaseBuilder {
     return (
       process.env.WORKFLOW_QUEUE_NAMESPACE ??
       this.config.workflowConfig?.config.queue?.namespace
+    );
+  }
+
+  protected get externalPackages(): string[] {
+    if (this.config.buildTarget === 'vercel-build-output-api') return [];
+    return (
+      this.config.externalPackages ??
+      this.config.workflowConfig?.config.build?.externalPackages ??
+      []
     );
   }
 
@@ -423,8 +439,8 @@ export abstract class BaseBuilder {
    * workflow compiler when the package is externalized.
    */
   private async warnAboutExternalWorkflowPackages(): Promise<void> {
-    const externalPackages = this.config.externalPackages;
-    if (!externalPackages?.length) return;
+    const externalPackages = this.externalPackages;
+    if (!externalPackages.length) return;
 
     for (const pkg of externalPackages) {
       if (BaseBuilder.PSEUDO_PACKAGES.has(pkg)) continue;
@@ -1129,7 +1145,7 @@ export const __steps_registered = true;
       ],
       // Plugin should catch most things, but this lets users hard override
       // if the plugin misses anything that should be externalized
-      external: ['bun', 'bun:*', ...(this.config.externalPackages || [])],
+      external: ['bun', 'bun:*', ...this.externalPackages],
     });
 
     const stepsResult = await esbuildCtx.rebuild();
@@ -1527,7 +1543,7 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
           minify: false,
           external: [
             '@aws-sdk/credential-provider-web-identity',
-            ...(this.config.externalPackages ?? []),
+            ...this.externalPackages,
           ],
           plugins: this.runtimeConfigPlugins,
         });
@@ -1719,7 +1735,7 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
         define: importMetaDefine,
         external: [
           '@aws-sdk/credential-provider-web-identity',
-          ...(this.config.externalPackages ?? []),
+          ...this.externalPackages,
         ],
         plugins: this.runtimeConfigPlugins,
       });
@@ -2003,7 +2019,7 @@ export const OPTIONS = handler;`;
       ],
       sourcemap: this.resolveSourcemap(EMIT_SOURCEMAPS_FOR_DEBUGGING),
       mainFields: ['module', 'main'],
-      external: this.config.externalPackages ?? [],
+      external: this.externalPackages,
       plugins: this.runtimeConfigPlugins,
     });
 

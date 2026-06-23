@@ -378,15 +378,10 @@ export function withWorkflow(
 
     if (!process.env.VERCEL_DEPLOYMENT_ID) {
       process.env.WORKFLOW_LOCAL_DATA_DIR ??= '.next/workflow-data';
-      if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
-        process.env.WORKFLOW_TARGET_WORLD = 'local';
-      }
       if (workflows?.local?.port !== undefined) {
         process.env.PORT = workflows.local.port.toString();
         process.env.WORKFLOW_LOCAL_BASE_URL = `http://localhost:${workflows.local.port}`;
       }
-    } else if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
-      process.env.WORKFLOW_TARGET_WORLD = 'vercel';
     }
 
     let nextConfig =
@@ -524,19 +519,12 @@ export function withWorkflow(
               'jsx',
               'js',
             ],
-            projectRoot:
-              nextConfig.outputFileTracingRoot ??
-              (workflowConfig.build?.projectRoot
-                ? resolve(process.cwd(), workflowConfig.build.projectRoot)
-                : undefined),
+            projectRoot: nextConfig.outputFileTracingRoot,
             moduleSpecifierRoot: process.cwd(),
             workingDir: process.cwd(),
             distDir,
             diagnosticsDir: `${distDir}/diagnostics`,
             buildTarget: 'next',
-            workflowsBundlePath: '', // not used in base
-            stepsBundlePath: '', // not used in base
-            webhookBundlePath: '', // node used in base
             sourcemap: workflows?.sourcemap,
             workflowConfig: loadedWorkflowConfig,
             externalPackages: [

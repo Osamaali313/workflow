@@ -274,9 +274,6 @@ describe('getDiagnosticsManifestPath', () => {
       buildTarget: 'vercel-build-output-api',
       workingDir: testRoot,
       dirs: ['src'],
-      stepsBundlePath: join(testRoot, 'steps.js'),
-      workflowsBundlePath: join(testRoot, 'workflows.js'),
-      webhookBundlePath: join(testRoot, 'webhook.js'),
     };
     const builder = new TestBuilder(config);
 

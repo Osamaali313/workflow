@@ -19,12 +19,16 @@ describe('getWorkflowConfig', () => {
 
   it('scans the project by default and honors configured directories', async () => {
     process.env.WORKFLOW_OBSERVABILITY_CWD = workingDir;
-    expect((await getWorkflowConfig()).dirs).toEqual(['.']);
+    expect(
+      (await getWorkflowConfig({ buildTarget: 'standalone' })).dirs
+    ).toEqual(['.']);
 
     writeFileSync(
       join(workingDir, 'workflow.config.ts'),
       `export default { build: { dirs: ['jobs'] } };`
     );
-    expect((await getWorkflowConfig()).dirs).toEqual(['jobs']);
+    expect(
+      (await getWorkflowConfig({ buildTarget: 'standalone' })).dirs
+    ).toEqual(['jobs']);
   });
 });

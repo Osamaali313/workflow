@@ -3,7 +3,6 @@ import { join, resolve } from 'node:path';
 import {
   type AstroConfig,
   BaseBuilder,
-  createBaseBuilderConfig,
   NORMALIZE_REQUEST_CODE,
   VercelBuildOutputAPIBuilder,
 } from '@workflow/builders';
@@ -28,18 +27,8 @@ export class LocalBuilder extends BaseBuilder {
       ...config,
       dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
       buildTarget: 'astro' as const,
-      stepsBundlePath: '', // unused in base
-      workflowsBundlePath: '', // unused in base
-      webhookBundlePath: '', // unused in base
       workingDir,
-      projectRoot:
-        config.projectRoot ??
-        (build?.projectRoot
-          ? resolve(workingDir, build.projectRoot)
-          : undefined),
-      externalPackages: config.externalPackages ?? build?.externalPackages,
       debugFilePrefix: '_', // Prefix with underscore so Astro ignores debug files
-      sourcemap: config.sourcemap,
     });
   }
 
@@ -102,9 +91,11 @@ export const prerender = false;`
 
     // Expose manifest as a public HTTP route when WORKFLOW_PUBLIC_MANIFEST=1
     // Astro maps `foo.json.js` to the URL `/foo.json`
+    const publicManifestPath = join(workflowGeneratedDir, 'manifest.json.js');
+    await rm(publicManifestPath, { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
       await writeFile(
-        join(workflowGeneratedDir, 'manifest.json.js'),
+        publicManifestPath,
         `export function GET() {
   return new Response(${JSON.stringify(manifestJson)}, {
     headers: { "content-type": "application/json" },
@@ -174,19 +165,9 @@ export class VercelBuilder extends VercelBuildOutputAPIBuilder {
     const workingDir = config.workingDir ?? process.cwd();
     const build = config.workflowConfig?.config.build;
     super({
-      ...createBaseBuilderConfig({
-        workingDir,
-        dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
-        projectRoot:
-          config.projectRoot ??
-          (build?.projectRoot
-            ? resolve(workingDir, build.projectRoot)
-            : undefined),
-        externalPackages: config.externalPackages ?? build?.externalPackages,
-        runtime: config.runtime,
-        sourcemap: config.sourcemap,
-        workflowConfig: config.workflowConfig,
-      }),
+      ...config,
+      workingDir,
+      dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
       buildTarget: 'vercel-build-output-api',
       debugFilePrefix: '_',
     });
