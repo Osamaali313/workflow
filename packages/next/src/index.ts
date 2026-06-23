@@ -340,6 +340,20 @@ export function withWorkflow(
     phase: string,
     ctx: { defaultConfig: NextConfig }
   ) {
+    if (phase === 'phase-production-server') {
+      if (!process.env.VERCEL_DEPLOYMENT_ID) {
+        process.env.WORKFLOW_LOCAL_DATA_DIR ??= '.next/workflow-data';
+        if (workflows?.local?.port !== undefined) {
+          process.env.PORT = workflows.local.port.toString();
+          process.env.WORKFLOW_LOCAL_BASE_URL = `http://localhost:${workflows.local.port}`;
+        }
+      }
+
+      return typeof nextConfigOrFn === 'function'
+        ? await nextConfigOrFn(phase, ctx)
+        : nextConfigOrFn;
+    }
+
     if (
       phase === 'phase-development-server' ||
       phase === 'phase-production-build'
@@ -606,10 +620,7 @@ export function withWorkflow(
     };
     // only run this in the main process so it only runs once
     // as Next.js uses child processes for different builds
-    if (
-      !process.env.WORKFLOW_NEXT_PRIVATE_BUILT &&
-      phase !== 'phase-production-server'
-    ) {
+    if (!process.env.WORKFLOW_NEXT_PRIVATE_BUILT) {
       const workflowBuilder = await getWorkflowBuilder();
 
       await workflowBuilder.build();

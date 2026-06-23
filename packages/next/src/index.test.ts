@@ -139,12 +139,35 @@ describe('withWorkflow builder config', () => {
     );
   });
 
-  it('does not prewarm the SWC plugin cache for the production server', async () => {
-    const config = withWorkflow({});
+  it('does not load build configuration for the production server', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-start-'));
+    process.chdir(projectDir);
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `export default { world: './workflow.world.ts' };`
+    );
+    writeFile(
+      join(projectDir, 'workflow.world.ts'),
+      'export default () => {};'
+    );
 
-    await config('phase-production-server', { defaultConfig: {} });
+    try {
+      const config = withWorkflow({});
+      await config('phase-production-server', { defaultConfig: {} });
 
-    expect(prewarmWorkflowSwcPluginCacheMock).not.toHaveBeenCalled();
+      expect(prewarmWorkflowSwcPluginCacheMock).not.toHaveBeenCalled();
+      expect(getNextBuilderMock).not.toHaveBeenCalled();
+      expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
+      expect(process.env.WORKFLOW_LOCAL_DATA_DIR).toBe('.next/workflow-data');
+      expect(
+        existsSync(
+          join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
+        )
+      ).toBe(false);
+    } finally {
+      process.chdir(originalCwd);
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 
   it('configures diagnostics inside the default Next.js dist dir', async () => {
