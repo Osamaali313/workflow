@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { getRuntimeWorkflowConfig } from '@workflow/config/runtime';
-import boundWorkflowConfig from '@workflow/config/runtime-binding';
+import '@workflow/config/runtime-binding';
 import {
   isVercelWorldTarget,
   resolveWorkflowTargetWorld,
@@ -40,7 +40,7 @@ const globalSymbols: typeof globalThis & {
 } = globalThis;
 
 function getWorkflowConfig() {
-  return boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
+  return getRuntimeWorkflowConfig() ?? {};
 }
 
 export function usesConfiguredWorld(): boolean {

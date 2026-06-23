@@ -164,6 +164,21 @@ describe('@workflow/nitro virtual handlers', () => {
       'import "@workflow/config/runtime-binding";'
     );
   });
+
+  it('keeps configured World providers in lazy chunks', async () => {
+    const project = createProject(
+      `export default { world: './workflow.world.ts' };`
+    );
+    writeFileSync(
+      join(project, 'workflow.world.ts'),
+      `throw new Error('must stay lazy');`
+    );
+    const nitro = createNitroStub({ routing: true, rootDir: project });
+
+    await nitroModule.setup(nitro);
+
+    expect(nitro.options.inlineDynamicImports).toBe(false);
+  });
 });
 
 describe('@workflow/nitro workflow.config.ts', () => {

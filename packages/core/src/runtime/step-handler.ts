@@ -1154,8 +1154,6 @@ function createStepHandler(namespace?: string) {
     });
 }
 
-const stepHandler = createStepHandler();
-
 /**
  * A single route that handles any step execution request and routes to the
  * appropriate step function. We may eventually want to create different bundles
@@ -1167,7 +1165,7 @@ export const stepEntrypoint: (req: Request) => Promise<Response> =
   /* @__PURE__ */ withHealthCheck(async (req) => {
     const world = await getWorld();
     if (!cachedStepHandler || cachedWorld !== world) {
-      cachedStepHandler = stepHandler(world);
+      cachedStepHandler = createStepHandler()(world);
       cachedWorld = world;
     }
     return cachedStepHandler(req);

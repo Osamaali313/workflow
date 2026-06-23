@@ -5,6 +5,7 @@ import {
   resolveQueueNamespace,
   SPEC_VERSION_CURRENT,
 } from '@workflow/world';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { Pool } from 'pg';
 import type { PostgresWorldConfig } from './config.js';
 import { createClient, type Drizzle } from './drizzle/index.js';
@@ -46,6 +47,7 @@ export function createWorld(
       50,
   }
 ): World & { start(): Promise<void> } {
+  let usesProviderNamespace = false;
   const maxPoolSize = config.maxPoolSize ?? getDefaultMaxPoolSize();
   const pool =
     config.pool ||
@@ -70,11 +72,15 @@ export function createWorld(
       streamFlushIntervalMs: config.streamFlushIntervalMs,
     }),
     async start() {
+      if (resolveQueueNamespace() === undefined && config.namespace) {
+        setWorkflowQueueNamespace(config.namespace);
+        usesProviderNamespace = true;
+      }
       await queue.start();
       await reenqueueActiveRuns(
         storage.runs,
         queue.queue,
-        getQueueTopicPrefix('workflow', resolveQueueNamespace(config.namespace))
+        getQueueTopicPrefix('workflow', resolveQueueNamespace())
       );
     },
     async close() {
@@ -82,6 +88,9 @@ export function createWorld(
       await queue.close();
       if (pool !== config.pool) {
         await pool.end();
+      }
+      if (usesProviderNamespace) {
+        setWorkflowQueueNamespace(undefined);
       }
     },
   };

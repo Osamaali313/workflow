@@ -1,11 +1,7 @@
 import { getWorkflowPort } from '@workflow/utils/get-port';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { createLocalWorld } from '@workflow/world-local';
-import {
-  Logger,
-  makeWorkerUtils,
-  run,
-  type WorkerUtils,
-} from 'graphile-worker';
+import { makeWorkerUtils, run, type WorkerUtils } from 'graphile-worker';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorld } from './index.js';
 import {
@@ -14,12 +10,9 @@ import {
   createRunsStorage,
   createStepsStorage,
 } from './storage.js';
-import { createStreamer } from './streamer.js';
 
 vi.mock('graphile-worker', () => ({
-  Logger: class Logger {
-    constructor(_: unknown) {}
-  },
+  Logger: class Logger {},
   makeWorkerUtils: vi.fn(),
   run: vi.fn(),
 }));
@@ -95,6 +88,8 @@ describe('re-enqueue active runs on start', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setWorkflowQueueNamespace(undefined);
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
     vi.mocked(makeWorkerUtils).mockResolvedValue(workerUtilsMock);
     vi.mocked(getWorkflowPort).mockResolvedValue(undefined);
     vi.mocked(run).mockResolvedValue(runnerMock as any);
@@ -112,6 +107,7 @@ describe('re-enqueue active runs on start', () => {
 
   afterEach(async () => {
     delete process.env.WORKFLOW_LOCAL_BASE_URL;
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
     delete process.env.PORT;
   });
 

@@ -8,6 +8,7 @@ import {
   SPEC_VERSION_CURRENT,
   type WorkflowRun,
 } from '@workflow/world';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerStepFunction } from './private.js';
 import { REPLAY_DIVERGENCE_MAX_RETRIES } from './runtime/constants.js';
@@ -128,6 +129,24 @@ async function runWorkflowHandlerWithEvents(
 describe('workflowEntrypoint World replacement', () => {
   afterEach(() => {
     setWorld(undefined);
+    setWorkflowQueueNamespace(undefined);
+  });
+
+  it('resolves the namespace when the handler binds to its World', async () => {
+    const createQueueHandler = vi.fn(() => async () => new Response());
+    setWorld({
+      specVersion: SPEC_VERSION_CURRENT,
+      createQueueHandler,
+    } as any);
+    const entrypoint = workflowEntrypoint('');
+
+    setWorkflowQueueNamespace('app');
+    await entrypoint(new Request('https://example.test'));
+
+    expect(createQueueHandler).toHaveBeenCalledWith(
+      '__app_wkf_workflow_',
+      expect.any(Function)
+    );
   });
 
   it('rebuilds its queue handler after the World changes', async () => {

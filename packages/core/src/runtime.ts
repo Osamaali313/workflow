@@ -290,11 +290,10 @@ export function workflowEntrypoint(
   const NO_INLINE_REPLAY_AFTER_MS =
     Number(process.env.WORKFLOW_V2_TIMEOUT_MS) || 120_000;
 
-  const namespace = resolveQueueNamespace(options?.namespace);
-  const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
-
-  const handler = (worldHandlers: WorldHandlers) =>
-    worldHandlers.createQueueHandler(
+  const handler = (worldHandlers: WorldHandlers) => {
+    const namespace = resolveQueueNamespace(options?.namespace);
+    const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
+    return worldHandlers.createQueueHandler(
       workflowPrefix,
       async (message_, metadata) => {
         // Check if this is a health check message
@@ -2019,6 +2018,7 @@ export function workflowEntrypoint(
         }); // End withTraceContext
       }
     );
+  };
 
   let cachedHandler: ((req: Request) => Promise<Response>) | undefined;
   let cachedWorld: World | undefined;
@@ -2055,9 +2055,13 @@ export function workflowEntrypoint(
       },
       async (span) => {
         if (!cachedHandler || cachedWorld !== world) {
-          cachedHandler = await trace('workflow.route.init', async () =>
-            handler(world)
-          );
+          cachedHandler = await trace('workflow.route.init', async () => {
+            const worldHandlers = await trace(
+              'workflow.route.get_world_handlers',
+              async () => world
+            );
+            return handler(worldHandlers);
+          });
           cachedWorld = world;
         }
 

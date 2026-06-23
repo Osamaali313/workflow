@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createWorkflowQueueTrigger } from '@workflow/builders';
 import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
-import type { Nitro, NitroModule, RollupConfig } from 'nitro/types';
+import type { Nitro, RollupConfig } from 'nitro/types';
 import { join } from 'pathe';
 import { LocalBuilder, VercelBuilder } from './builders.js';
 import type { ModuleOptions } from './types';
@@ -78,6 +78,9 @@ export const nitroModule = {
     });
     const workflowConfig = loadedWorkflowConfig.config;
     const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
+    if (workflowConfig.world) {
+      nitro.options.inlineDynamicImports = false;
+    }
     const nitroIntegration =
       workflowConfig.integration?.type === 'nitro'
         ? workflowConfig.integration
@@ -395,12 +398,7 @@ export const nitroModule = {
   },
 };
 
-export default {
-  name: nitroModule.name,
-  async setup(nitro: Nitro) {
-    await nitroModule.setup(nitro);
-  },
-} satisfies NitroModule;
+export default nitroModule;
 
 const DASHBOARD_VIRTUAL_ID = '#workflow/dashboard-handler';
 

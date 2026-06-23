@@ -5,6 +5,7 @@ import {
   ThrottleError,
   WorkflowWorldError,
 } from '@workflow/errors';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import {
   afterEach,
   beforeAll,
@@ -18,6 +19,7 @@ import {
 // Use vi.hoisted so these are available in mock factories
 const {
   capturedHandlerRef,
+  capturedPrefixRef,
   mockEventsCreate,
   mockQueue,
   mockRuntimeLogger,
@@ -32,6 +34,7 @@ const {
     capturedHandlerRef: {
       current: null as null | ((...args: unknown[]) => Promise<unknown>),
     },
+    capturedPrefixRef: { current: '' },
     mockEventsCreate: vi.fn(),
     mockQueue: vi.fn().mockResolvedValue({ messageId: 'msg_test' }),
     mockRuntimeLogger: (() => {
@@ -71,9 +74,10 @@ vi.mock('./world.js', () => ({
   getWorld: vi.fn(async () => ({
     createQueueHandler: vi.fn(
       (
-        _prefix: string,
+        prefix: string,
         handler: (...args: unknown[]) => Promise<unknown>
       ): ((req: Request) => Promise<Response>) => {
+        capturedPrefixRef.current = prefix;
         capturedHandlerRef.current = handler;
         return vi.fn() as unknown as (req: Request) => Promise<Response>;
       }
@@ -229,6 +233,17 @@ function createMessage(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe('step-handler namespace', () => {
+  afterEach(() => setWorkflowQueueNamespace(undefined));
+
+  it('resolves the namespace when the handler binds to its World', async () => {
+    setWorkflowQueueNamespace('app');
+    await stepEntrypoint(new Request('http://localhost'));
+
+    expect(capturedPrefixRef.current).toBe('__app_wkf_step_');
+  });
+});
 
 describe('step-handler 409 handling', () => {
   // Trigger the lazy handler initialization by calling stepEntrypoint once.

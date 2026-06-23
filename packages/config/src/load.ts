@@ -19,7 +19,7 @@ import {
 import type { WorldProvider } from '@workflow/world';
 import { findUp } from 'find-up';
 import { createJiti } from 'jiti';
-import type { RuntimeWorkflowConfig } from './runtime-binding.js';
+import type { RuntimeWorkflowConfig } from './runtime.js';
 import {
   type WorkflowConfig,
   WorkflowConfigSchema,
@@ -166,7 +166,7 @@ export async function loadWorkflowConfig(
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
+    `const world = ${worldFactory};\nglobalThis[Symbol.for('@workflow/config/runtime')] = { world, queue: ${JSON.stringify(config.queue)} };\n`
   );
 
   return { path, runtimePath, config };

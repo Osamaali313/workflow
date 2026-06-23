@@ -1,5 +1,10 @@
+import type { WorldProvider } from '@workflow/world';
 import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
-import type { RuntimeWorkflowConfig } from './runtime-binding.js';
+import type { WorkflowConfig } from './schema.js';
+
+export type RuntimeWorkflowConfig = Pick<WorkflowConfig, 'queue'> & {
+  world?: WorldProvider;
+};
 
 const RuntimeWorkflowConfigSymbol = Symbol.for('@workflow/config/runtime');
 

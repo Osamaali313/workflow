@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { JsonTransport } from '@vercel/queue';
 import { getWorkflowPort } from '@workflow/utils/get-port';
 import { MessageId, parseQueueName, type QueuePayload } from '@workflow/world';
+import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { createLocalWorld } from '@workflow/world-local';
 import { makeWorkerUtils, run, type WorkerUtils } from 'graphile-worker';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,9 +15,7 @@ const createdQueues: Array<ReturnType<typeof createQueue>> = [];
 const createdServers: Server[] = [];
 
 vi.mock('graphile-worker', () => ({
-  Logger: class Logger {
-    constructor(_: unknown) {}
-  },
+  Logger: class Logger {},
   makeWorkerUtils: vi.fn(),
   run: vi.fn(),
 }));
@@ -52,6 +51,8 @@ describe('postgres queue http execution', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setWorkflowQueueNamespace(undefined);
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
 
     vi.mocked(makeWorkerUtils).mockResolvedValue(workerUtilsMock);
     vi.mocked(getWorkflowPort).mockResolvedValue(undefined);
@@ -74,6 +75,7 @@ describe('postgres queue http execution', () => {
     );
     vi.useRealTimers();
     delete process.env.WORKFLOW_LOCAL_BASE_URL;
+    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
     delete process.env.PORT;
   });
 
@@ -256,7 +258,7 @@ describe('postgres queue http execution', () => {
     }
   });
 
-  it('serializes namespaced workflow queue execution for the same runId', async () => {
+  it('uses the runtime namespace before the provider fallback', async () => {
     let resolveFirstRequestStarted!: () => void;
     const firstRequestStarted = new Promise<void>((resolve) => {
       resolveFirstRequestStarted = resolve;
@@ -283,6 +285,7 @@ describe('postgres queue http execution', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     process.env.WORKFLOW_LOCAL_BASE_URL = 'http://localhost:3000';
+    process.env.WORKFLOW_QUEUE_NAMESPACE = 'preview';
 
     const queue = buildQueue(
       { connectionString: 'postgres://test', namespace: 'custom' },
@@ -296,13 +299,13 @@ describe('postgres queue http execution', () => {
         runId: 'wrun_01ABC',
       };
       const firstExecution = task(
-        buildMessageData('__custom_wkf_workflow_test-workflow', payload, {
+        buildMessageData('__preview_wkf_workflow_test-workflow', payload, {
           messageId: MessageId.parse('msg_01ABC'),
         }),
         {} as any
       );
       const secondExecution = task(
-        buildMessageData('__custom_wkf_workflow_test-workflow', payload, {
+        buildMessageData('__preview_wkf_workflow_test-workflow', payload, {
           messageId: MessageId.parse('msg_01ABD'),
         }),
         {} as any

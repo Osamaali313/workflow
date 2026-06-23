@@ -14,7 +14,6 @@ import {
   getRuntimeWorkflowConfig,
   setRuntimeWorkflowConfig,
 } from './runtime.js';
-import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 import { WorkflowConfigSchema } from './schema.js';
 
 const tempDirs: string[] = [];
@@ -58,15 +57,12 @@ describe('loadWorkflowConfig', () => {
       'workflow.config.ts': `export default { queue: { namespace: 'app' } };`,
     });
     const loaded = await loadWorkflowConfig({ cwd: project });
-    const runtime = (await import(
-      pathToFileURL(loaded.runtimePath as string).href
-    )) as { default: RuntimeWorkflowConfig };
+    await import(pathToFileURL(loaded.runtimePath as string).href);
 
-    expect(runtime.default).toEqual({
+    expect(getRuntimeWorkflowConfig()).toEqual({
       world: undefined,
       queue: { namespace: 'app' },
     });
-    expect(getRuntimeWorkflowConfig()).toBe(runtime.default);
   });
 
   it('preserves a build-time queue namespace without a config file', async () => {
@@ -74,13 +70,13 @@ describe('loadWorkflowConfig', () => {
     const project = createProject({});
 
     const loaded = await loadWorkflowConfig({ cwd: project });
-    const runtime = (await import(
-      pathToFileURL(loaded.runtimePath as string).href
-    )) as { default: RuntimeWorkflowConfig };
+    await import(pathToFileURL(loaded.runtimePath as string).href);
 
     expect(loaded.path).toBeUndefined();
     expect(loaded.config.queue).toEqual({ namespace: 'environment' });
-    expect(runtime.default.queue).toEqual({ namespace: 'environment' });
+    expect(getRuntimeWorkflowConfig()?.queue).toEqual({
+      namespace: 'environment',
+    });
   });
 
   it('loads the nearest TypeScript config without merging parents', async () => {
@@ -138,14 +134,10 @@ export default () => ({});
     });
     const loaded = await loadWorkflowConfig({ cwd: project });
 
-    const runtime = (await import(
-      pathToFileURL(loaded.runtimePath as string).href
-    )) as {
-      default: RuntimeWorkflowConfig;
-    };
+    await import(pathToFileURL(loaded.runtimePath as string).href);
     expect(globals.__workflowWorldImports).toBeUndefined();
 
-    await runtime.default.world?.();
+    await getRuntimeWorkflowConfig()?.world?.();
     expect(globals.__workflowWorldImports).toBe(1);
   });
 

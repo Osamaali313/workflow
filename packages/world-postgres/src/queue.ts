@@ -488,7 +488,7 @@ export function createQueue(
       string,
       (payload: unknown, helpers: unknown) => Promise<void>
     > = {};
-    const namespace = resolveQueueNamespace(config.namespace);
+    const namespace = resolveQueueNamespace() ?? config.namespace;
     const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
     const stepPrefix = getQueueTopicPrefix('step', namespace);
     taskList[getJobQueueName(workflowPrefix)] =
