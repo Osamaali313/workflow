@@ -1,6 +1,10 @@
+import { fileURLToPath } from 'node:url';
 import { createBuildQueue } from '@workflow/builders';
 import type { SourcemapMode } from '@workflow/config';
-import { loadWorkflowConfig } from '@workflow/config/load';
+import {
+  type LoadedWorkflowConfig,
+  loadWorkflowConfig,
+} from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
 import type { AstroIntegration, HookParameters } from 'astro';
@@ -19,10 +23,10 @@ export interface WorkflowPluginOptions {
 export function workflowPlugin(
   options: WorkflowPluginOptions = {}
 ): AstroIntegration {
-  const workflowConfig = loadWorkflowConfig({
-    cwd: process.cwd(),
-    integration: 'astro',
-  });
+  let builderConfig: {
+    workingDir: string;
+    workflowConfig: LoadedWorkflowConfig;
+  };
   let builder: LocalBuilder;
   const enqueue = createBuildQueue();
 
@@ -30,27 +34,27 @@ export function workflowPlugin(
     name: 'workflow:astro',
     hooks: {
       'astro:config:setup': async ({
+        config,
         updateConfig,
       }: HookParameters<'astro:config:setup'>) => {
-        const loadedConfig = await workflowConfig;
+        const workingDir = fileURLToPath(config.root);
+        builderConfig = {
+          workingDir,
+          workflowConfig: await loadWorkflowConfig({
+            cwd: workingDir,
+            integration: 'astro',
+          }),
+        };
         builder = new LocalBuilder({
+          ...builderConfig,
           sourcemap: options.sourcemap,
-          workflowConfig: loadedConfig,
         });
-        // Use local builder
         if (!process.env.VERCEL_DEPLOYMENT_ID) {
-          try {
-            await builder.build();
-          } catch (buildError) {
-            // Build might fail due to invalid workflow files or missing dependencies
-            // Log the error and rethrow to properly propagate to Astro
-            console.error('Build failed during config setup:', buildError);
-            throw buildError;
-          }
+          await builder.build();
         }
         updateConfig({
           vite: {
-            ...(loadedConfig.runtimePath
+            ...(builderConfig.workflowConfig.runtimePath
               ? { ssr: { noExternal: ['workflow', '@workflow/core'] } }
               : {}),
             plugins: [
@@ -60,7 +64,7 @@ export function workflowPlugin(
                 enforce: 'pre',
                 resolveId(source) {
                   if (source === '@workflow/config/runtime-binding') {
-                    return loadedConfig.runtimePath;
+                    return builderConfig.workflowConfig.runtimePath;
                   }
                 },
               },
@@ -76,8 +80,8 @@ export function workflowPlugin(
       'astro:build:done': async () => {
         if (process.env.VERCEL_DEPLOYMENT_ID) {
           const vercelBuilder = new VercelBuilder({
+            ...builderConfig,
             sourcemap: options.sourcemap,
-            workflowConfig: await workflowConfig,
           });
           await vercelBuilder.build();
         }

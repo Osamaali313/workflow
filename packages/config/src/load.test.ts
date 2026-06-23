@@ -69,6 +69,20 @@ describe('loadWorkflowConfig', () => {
     expect(getRuntimeWorkflowConfig()).toBe(runtime.default);
   });
 
+  it('preserves a build-time queue namespace in the runtime binding', async () => {
+    process.env.WORKFLOW_QUEUE_NAMESPACE = 'environment';
+    const project = createProject({
+      'workflow.config.ts': `export default { build: { dirs: ['jobs'] } };`,
+    });
+
+    const loaded = await loadWorkflowConfig({ cwd: project });
+    const runtime = (await import(
+      pathToFileURL(loaded.runtimePath as string).href
+    )) as { default: RuntimeWorkflowConfig };
+
+    expect(runtime.default.queue).toEqual({ namespace: 'environment' });
+  });
+
   it('loads the nearest TypeScript config without merging parents', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['parent'] } };`,

@@ -118,7 +118,11 @@ export async function loadWorkflowConfig(
     `${basename(path)} configures "${config.integration?.type}" but was loaded by "${options.integration}".`
   );
 
-  if (!config.world && !config.queue) {
+  const namespace =
+    process.env.WORKFLOW_QUEUE_NAMESPACE ?? config.queue?.namespace;
+  const queue = namespace === undefined ? undefined : { namespace };
+
+  if (!config.world && !queue) {
     return { path, runtimePath: undefined, config };
   }
 
@@ -150,7 +154,7 @@ export async function loadWorkflowConfig(
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
+    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
   );
 
   return { path, runtimePath, config };

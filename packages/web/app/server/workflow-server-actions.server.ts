@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as workflowRunHelpers from '@workflow/core/runtime';
-import { createWorld } from '@workflow/core/runtime';
+import { getWorld } from '@workflow/core/runtime';
 import {
   type HealthCheckEndpoint,
   type HealthCheckResult,
@@ -16,7 +16,7 @@ import {
 } from '@workflow/core/runtime/helpers';
 import { resumeHook as resumeHookRuntime } from '@workflow/core/runtime/resume-hook';
 
-import { WorkflowWorldError, WorkflowRunNotFoundError } from '@workflow/errors';
+import { WorkflowRunNotFoundError, WorkflowWorldError } from '@workflow/errors';
 import { findWorkflowDataDir } from '@workflow/utils/check-data-dir';
 import type {
   Event,
@@ -26,7 +26,7 @@ import type {
   WorkflowRunStatus,
   World,
 } from '@workflow/world';
-import { type APIConfig, createVercelWorld } from '@workflow/world-vercel';
+import { createVercelWorld } from '@workflow/world-vercel';
 
 /**
  * Environment variable map for world configuration.
@@ -384,15 +384,6 @@ export type ServerActionResult<T> =
   | { success: false; error: ServerActionError };
 
 /**
- * Cache for World instances.
- *
- * IMPORTANT:
- * - We only cache non-vercel worlds.
- * - Cache keys are derived from **server-side** WORKFLOW_* env vars only.
- */
-const worldCache = new Map<string, World>();
-
-/**
  * Get or create a World instance based on configuration.
  *
  * The @workflow/web UI should always pass `{}` for envMap.
@@ -435,21 +426,7 @@ async function getWorldFromEnv(userEnvMap: EnvMap): Promise<World> {
     await ensureLocalWorldDataDirEnv();
   }
 
-  // Cache key derived ONLY from WORKFLOW_* env vars.
-  const workflowEnvEntries = Object.entries(process.env).filter(([key]) =>
-    key.startsWith('WORKFLOW_')
-  );
-  workflowEnvEntries.sort(([a], [b]) => a.localeCompare(b));
-  const cacheKey = JSON.stringify(Object.fromEntries(workflowEnvEntries));
-
-  const cachedWorld = worldCache.get(cacheKey);
-  if (cachedWorld) {
-    return cachedWorld;
-  }
-
-  const world = await createWorld();
-  worldCache.set(cacheKey, world);
-  return world;
+  return getWorld();
 }
 
 /**
