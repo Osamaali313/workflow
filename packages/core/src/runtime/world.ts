@@ -30,13 +30,25 @@ const ManagedWorldCache = Symbol.for('@workflow/world//managedCache');
 const ManagedWorldCachePromise = Symbol.for(
   '@workflow/world//managedCachePromise'
 );
+const WorldClosePromise = Symbol.for('@workflow/world//closePromise');
+const WorldGeneration = Symbol.for('@workflow/world//generation');
 
 const globalSymbols: typeof globalThis & {
   [WorldCache]?: World;
   [WorldCachePromise]?: Promise<World>;
   [ManagedWorldCache]?: boolean;
   [ManagedWorldCachePromise]?: boolean;
+  [WorldClosePromise]?: Promise<void>;
+  [WorldGeneration]?: number;
 } = globalThis;
+
+export function getWorldGeneration(): number {
+  return globalSymbols[WorldGeneration] ?? 0;
+}
+
+function advanceWorldGeneration(): void {
+  globalSymbols[WorldGeneration] = getWorldGeneration() + 1;
+}
 
 function getWorkflowConfig() {
   return boundWorkflowConfig ?? getRuntimeWorkflowConfig() ?? {};
@@ -197,6 +209,11 @@ export const getWorldHandlers = async (): Promise<WorldHandlers> => {
 };
 
 export const getWorld = async (): Promise<World> => {
+  const closingWorld = globalSymbols[WorldClosePromise];
+  if (closingWorld) {
+    await closingWorld;
+  }
+
   if (globalSymbols[WorldCache]) {
     return globalSymbols[WorldCache];
   }
@@ -234,6 +251,7 @@ export const getWorld = async (): Promise<World> => {
       globalSymbols[ManagedWorldCache] = pendingWorldIsManaged;
       globalSymbols[WorldCachePromise] = undefined;
       globalSymbols[ManagedWorldCachePromise] = undefined;
+      advanceWorldGeneration();
     }
     return world;
   } catch (error) {
@@ -248,6 +266,10 @@ export const getWorld = async (): Promise<World> => {
 /** Override or clear an unmanaged cached World. */
 export const setWorld = (world: World | undefined): void => {
   assert(
+    !globalSymbols[WorldClosePromise],
+    'Cannot replace a World while it is closing.'
+  );
+  assert(
     !globalSymbols[ManagedWorldCache] &&
       !globalSymbols[ManagedWorldCachePromise],
     'Call await closeWorld() before replacing a managed World.'
@@ -257,22 +279,40 @@ export const setWorld = (world: World | undefined): void => {
   globalSymbols[WorldCachePromise] = undefined;
   globalSymbols[ManagedWorldCache] = undefined;
   globalSymbols[ManagedWorldCachePromise] = undefined;
+  advanceWorldGeneration();
 };
 
 /**
  * Close the cached World without creating one just for cleanup.
  */
 export const closeWorld = async (): Promise<void> => {
+  if (globalSymbols[WorldClosePromise]) {
+    return globalSymbols[WorldClosePromise];
+  }
+
   const cachedWorld = globalSymbols[WorldCache];
   const pendingWorld = globalSymbols[WorldCachePromise];
+  const closePromise = (async () => {
+    const world =
+      cachedWorld ?? (pendingWorld ? await pendingWorld : undefined);
+    await world?.close?.();
+  })();
+  globalSymbols[WorldClosePromise] = closePromise;
 
-  globalSymbols[WorldCache] = undefined;
-  globalSymbols[WorldCachePromise] = undefined;
-  globalSymbols[ManagedWorldCache] = undefined;
-  globalSymbols[ManagedWorldCachePromise] = undefined;
-
-  const world = cachedWorld ?? (pendingWorld ? await pendingWorld : undefined);
-  await world?.close?.();
+  try {
+    await closePromise;
+    if (globalSymbols[WorldClosePromise] === closePromise) {
+      globalSymbols[WorldCache] = undefined;
+      globalSymbols[WorldCachePromise] = undefined;
+      globalSymbols[ManagedWorldCache] = undefined;
+      globalSymbols[ManagedWorldCachePromise] = undefined;
+      advanceWorldGeneration();
+    }
+  } finally {
+    if (globalSymbols[WorldClosePromise] === closePromise) {
+      globalSymbols[WorldClosePromise] = undefined;
+    }
+  }
 };
 
 // Register getWorld on globalThis so getWorldLazy can call it directly when

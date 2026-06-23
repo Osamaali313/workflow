@@ -319,6 +319,7 @@ describe('withWorkflow builder config', () => {
       expect(process.env.PORT).toBe('4000');
       expect(observedBaseUrl).toBe('http://localhost:4000');
       expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
+      expect(process.env.WORKFLOW_LOCAL_DATA_DIR).toBe('.next/workflow-data');
       expect(builderConfigs[0]).toMatchObject({
         dirs: ['jobs'],
         projectRoot: '/explicit-root',

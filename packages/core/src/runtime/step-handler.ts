@@ -58,7 +58,12 @@ import {
   withHealthCheck,
 } from './helpers.js';
 import { safeWaitUntil } from './wait-until.js';
-import { getWorld, getWorldHandlers, type WorldHandlers } from './world.js';
+import {
+  getWorld,
+  getWorldGeneration,
+  getWorldHandlers,
+  type WorldHandlers,
+} from './world.js';
 
 const DEFAULT_STEP_MAX_RETRIES = 3;
 
@@ -1161,10 +1166,12 @@ const stepHandler = createStepHandler();
  * for each step, this is temporary.
  */
 let cachedStepHandler: ((req: Request) => Promise<Response>) | undefined;
+let cachedWorldGeneration = -1;
 export const stepEntrypoint: (req: Request) => Promise<Response> =
   /* @__PURE__ */ withHealthCheck(async (req) => {
-    if (!cachedStepHandler) {
+    if (!cachedStepHandler || cachedWorldGeneration !== getWorldGeneration()) {
       cachedStepHandler = stepHandler(await getWorldHandlers());
+      cachedWorldGeneration = getWorldGeneration();
     }
     return cachedStepHandler(req);
   });

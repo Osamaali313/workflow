@@ -51,6 +51,7 @@ import { handleSuspension } from './runtime/suspension-handler.js';
 import { getWaitContinuationDispatch } from './runtime/wait-continuation.js';
 import {
   getWorld,
+  getWorldGeneration,
   getWorldHandlers,
   type WorldHandlers,
 } from './runtime/world.js';
@@ -2025,6 +2026,7 @@ export function workflowEntrypoint(
     );
 
   let cachedHandler: ((req: Request) => Promise<Response>) | undefined;
+  let cachedWorldGeneration = -1;
   let invocationCount = 0;
   const entrypointCreatedAt = Date.now();
   const routeModuleBodyInitMs =
@@ -2034,7 +2036,9 @@ export function workflowEntrypoint(
 
   return withHealthCheck(async (req) => {
     invocationCount += 1;
-    const handlerCached = cachedHandler !== undefined;
+    const worldGeneration = getWorldGeneration();
+    const handlerCached =
+      cachedHandler !== undefined && cachedWorldGeneration === worldGeneration;
     const spanKind = await getSpanKind('SERVER');
 
     return trace(
@@ -2056,7 +2060,7 @@ export function workflowEntrypoint(
         },
       },
       async (span) => {
-        if (!cachedHandler) {
+        if (!cachedHandler || cachedWorldGeneration !== worldGeneration) {
           cachedHandler = await trace('workflow.route.init', async () => {
             const worldHandlers = await trace(
               'workflow.route.get_world_handlers',
@@ -2064,6 +2068,7 @@ export function workflowEntrypoint(
             );
             return handler(worldHandlers);
           });
+          cachedWorldGeneration = getWorldGeneration();
         }
 
         const response = await cachedHandler(req);

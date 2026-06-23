@@ -67,6 +67,7 @@ vi.mock('@vercel/functions', () => ({
 
 // Mock the world module - createQueueHandler captures the handler
 vi.mock('./world.js', () => ({
+  getWorldGeneration: vi.fn(() => 0),
   getWorld: vi.fn(async () => ({
     events: { create: mockEventsCreate },
     queue: mockQueue,

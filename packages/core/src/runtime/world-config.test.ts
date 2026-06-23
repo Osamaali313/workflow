@@ -136,4 +136,56 @@ describe('configured World', () => {
     await expect(getWorld()).resolves.toBe(second);
     expect(create).toHaveBeenCalledTimes(2);
   });
+
+  it('waits for cleanup before starting a replacement World', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    let finishClose!: () => void;
+    const closing = new Promise<void>((resolve) => {
+      finishClose = resolve;
+    });
+    const first = {
+      start: vi.fn(async () => {}),
+      close: vi.fn(() => closing),
+    } as unknown as World;
+    const second = {
+      start: vi.fn(async () => {}),
+      close: vi.fn(async () => {}),
+    } as unknown as World;
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+    setRuntimeWorkflowConfig({ world: create });
+
+    await getWorld();
+    const close = closeWorld();
+    const replacement = getWorld();
+    expect(() => setWorld(second)).toThrow(
+      'Cannot replace a World while it is closing.'
+    );
+    expect(create).toHaveBeenCalledOnce();
+
+    finishClose();
+    await close;
+    await expect(replacement).resolves.toBe(second);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a World cached when cleanup fails', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    const world = {
+      start: vi.fn(async () => {}),
+      close: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('close failed'))
+        .mockResolvedValueOnce(undefined),
+    } as unknown as World;
+    const create = vi.fn(() => world);
+    setRuntimeWorkflowConfig({ world: create });
+
+    await getWorld();
+    await expect(closeWorld()).rejects.toThrow('close failed');
+    await expect(getWorld()).resolves.toBe(world);
+    expect(create).toHaveBeenCalledOnce();
+  });
 });

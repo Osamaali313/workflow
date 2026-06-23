@@ -377,9 +377,9 @@ export function withWorkflow(
     const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
 
     if (!process.env.VERCEL_DEPLOYMENT_ID) {
+      process.env.WORKFLOW_LOCAL_DATA_DIR ??= '.next/workflow-data';
       if (!workflowConfig.world && !process.env.WORKFLOW_TARGET_WORLD) {
         process.env.WORKFLOW_TARGET_WORLD = 'local';
-        process.env.WORKFLOW_LOCAL_DATA_DIR = '.next/workflow-data';
       }
       if (workflows?.local?.port !== undefined) {
         process.env.PORT = workflows.local.port.toString();

@@ -125,6 +125,39 @@ async function runWorkflowHandlerWithEvents(
   return createdEvents;
 }
 
+describe('workflowEntrypoint World replacement', () => {
+  afterEach(() => {
+    setWorld(undefined);
+  });
+
+  it('rebuilds its queue handler after the World changes', async () => {
+    const firstHandler = vi.fn(async () => new Response('first'));
+    const secondHandler = vi.fn(async () => new Response('second'));
+    const firstCreate = vi.fn(() => firstHandler);
+    const secondCreate = vi.fn(() => secondHandler);
+    const entrypoint = workflowEntrypoint('');
+
+    setWorld({
+      specVersion: SPEC_VERSION_CURRENT,
+      createQueueHandler: firstCreate,
+    } as any);
+    expect(
+      await (await entrypoint(new Request('https://example.test'))).text()
+    ).toBe('first');
+
+    setWorld(undefined);
+    setWorld({
+      specVersion: SPEC_VERSION_CURRENT,
+      createQueueHandler: secondCreate,
+    } as any);
+    expect(
+      await (await entrypoint(new Request('https://example.test'))).text()
+    ).toBe('second');
+    expect(firstCreate).toHaveBeenCalledOnce();
+    expect(secondCreate).toHaveBeenCalledOnce();
+  });
+});
+
 describe('workflowEntrypoint replay guards', () => {
   afterEach(() => {
     setWorld(undefined);
