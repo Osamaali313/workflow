@@ -22,7 +22,6 @@ import {
   applySwcTransform,
   type WorkflowManifest,
 } from './apply-swc-transform.js';
-import { createWorkflowEntrypointOptionsCode } from './constants.js';
 import { getEsbuildTsconfigOptions } from './esbuild-tsconfig.js';
 import {
   type DiscoveredEntries,

@@ -28,10 +28,7 @@ Create a provider for the World:
 import type { WorldProvider } from "workflow/config";
 import { createWorld } from "@workflow/world-postgres";
 
-const world: WorldProvider = () =>
-  createWorld({
-    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
-  });
+const world: WorldProvider = () => createWorld();
 
 export default world;
 ```

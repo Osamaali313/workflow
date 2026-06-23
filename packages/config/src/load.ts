@@ -135,10 +135,13 @@ export async function loadWorkflowConfig(
   const worldFactory = world
     ? `async () => { const provider = (await import(${JSON.stringify(world)})).default; return provider(); }`
     : 'undefined';
+  const namespace =
+    process.env.WORKFLOW_QUEUE_NAMESPACE ?? config.queue?.namespace;
+  const queue = namespace === undefined ? undefined : { namespace };
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nglobalThis[Symbol.for('@workflow/queue/namespace')] = config.queue?.namespace;\nexport default config;\n`
+    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nglobalThis[Symbol.for('@workflow/queue/namespace')] = config.queue?.namespace;\nexport default config;\n`
   );
 
   return { path, runtimePath, config };

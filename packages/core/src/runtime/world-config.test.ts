@@ -3,7 +3,7 @@ import type { World } from '@workflow/world';
 import { resolveQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getWorldLazy } from './get-world-lazy.js';
-import { closeWorld, getWorld, getWorldHandlers } from './world.js';
+import { closeWorld, getWorld, getWorldHandlers, setWorld } from './world.js';
 
 const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
 
@@ -81,6 +81,26 @@ describe('configured World', () => {
     await expect(getWorld()).rejects.toThrow(
       'Configured World provider must return a World.'
     );
+  });
+
+  it('requires managed Worlds to be closed before reset', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    const close = vi.fn(async () => {});
+    setRuntimeWorkflowConfig({
+      world: () =>
+        ({
+          start: vi.fn(async () => {}),
+          close,
+        }) as unknown as World,
+    });
+
+    await getWorld();
+    expect(() => setWorld(undefined)).toThrow(
+      'Call await closeWorld() before replacing a managed World.'
+    );
+    await closeWorld();
+    expect(close).toHaveBeenCalledOnce();
+    expect(() => setWorld(undefined)).not.toThrow();
   });
 
   it('does not cache a World closed during startup', async () => {

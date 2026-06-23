@@ -34,6 +34,7 @@ function createProject(files: Record<string, string>): string {
 
 afterEach(() => {
   setRuntimeWorkflowConfig(undefined);
+  delete process.env.WORKFLOW_QUEUE_NAMESPACE;
   delete (globalThis as { __workflowWorldImports?: number })
     .__workflowWorldImports;
   for (const dir of tempDirs.splice(0)) {
@@ -66,6 +67,20 @@ describe('loadWorkflowConfig', () => {
       queue: { namespace: 'app' },
     });
     expect(getRuntimeWorkflowConfig()).toBe(runtime.default);
+  });
+
+  it('uses the build environment namespace as the runtime fallback', async () => {
+    process.env.WORKFLOW_QUEUE_NAMESPACE = 'deployment';
+    const project = createProject({
+      'workflow.config.ts': `export default { queue: { namespace: 'app' } };`,
+    });
+    const loaded = await loadWorkflowConfig({ cwd: project });
+    const runtime = (await import(
+      pathToFileURL(loaded.runtimePath as string).href
+    )) as { default: RuntimeWorkflowConfig };
+
+    expect(loaded.config.queue).toEqual({ namespace: 'app' });
+    expect(runtime.default.queue).toEqual({ namespace: 'deployment' });
   });
 
   it('loads the nearest TypeScript config without merging parents', async () => {
