@@ -1,3 +1,5 @@
+import { createRuntimeWorkflowConfig } from '@workflow/config/load';
+import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
 import { createWorld, setWorld } from '@workflow/core/runtime';
 import { isVercelWorldTarget } from '@workflow/utils';
 import type { World } from '@workflow/world';
@@ -5,6 +7,7 @@ import { createVercelWorld } from '@workflow/world-vercel';
 import chalk from 'chalk';
 import terminalLink from 'terminal-link';
 import { logger, setJsonMode, setVerboseMode } from '../config/log.js';
+import { loadProjectWorkflowConfig } from '../config/workflow-config.js';
 import { checkForUpdateCached } from '../update-check.js';
 import {
   inferLocalWorldEnvVars,
@@ -13,20 +16,17 @@ import {
   writeEnvVars,
 } from './env.js';
 
-/**
- * Setup CLI world configuration.
- * If throwOnConfigError is false, will return null world with the error message
- * instead of throwing, allowing the web UI to open for configuration.
- */
+/** Set up the CLI World, allowing the web UI to ignore missing local data. */
 export const setupCliWorld = async (
   flags: {
     json: boolean;
     verbose: boolean;
-    backend: string;
-    env: string;
+    backend?: string;
+    env?: string;
     authToken: string;
     project: string;
     team: string;
+    port?: number;
   },
   version: string,
   ignoreLocalWorldConfigError = false
@@ -34,10 +34,24 @@ export const setupCliWorld = async (
   setJsonMode(Boolean(flags.json));
   setVerboseMode(Boolean(flags.verbose));
 
+  const loadedConfig = await loadProjectWorkflowConfig();
+  setRuntimeWorkflowConfig(
+    loadedConfig.path ? createRuntimeWorkflowConfig(loadedConfig) : undefined
+  );
+
+  const backend =
+    flags.backend ??
+    process.env.WORKFLOW_TARGET_WORLD ??
+    (loadedConfig.config.world
+      ? undefined
+      : process.env.VERCEL_DEPLOYMENT_ID
+        ? 'vercel'
+        : 'local');
+
   // Check for updates
   const updateCheck = await checkForUpdateCached(version);
 
-  const withAnsiLinks = flags.json ? false : true;
+  const withAnsiLinks = !flags.json;
   const docsUrl = withAnsiLinks
     ? terminalLink('https://workflow-sdk.dev/', 'https://workflow-sdk.dev/')
     : 'https://workflow-sdk.dev/';
@@ -73,14 +87,17 @@ export const setupCliWorld = async (
 
   logger.showBox('green', ...boxLines);
 
-  logger.debug('Inferring env vars, backend:', flags.backend);
+  logger.debug(
+    'Inferring env vars, backend:',
+    backend ?? loadedConfig.config.world
+  );
   writeEnvVars({
     DEBUG: flags.verbose ? '1' : '',
-    WORKFLOW_TARGET_WORLD: flags.backend,
   });
+  if (backend) writeEnvVars({ WORKFLOW_TARGET_WORLD: backend });
 
   let vercelEnvVars: VercelEnvVars | undefined;
-  if (isVercelWorldTarget(flags.backend)) {
+  if (backend && isVercelWorldTarget(backend)) {
     // Seed the initial flags into process.env so inferVercelEnvVars() can
     // read them via getEnvVars() as starting values before inference.
     writeEnvVars({
@@ -90,10 +107,12 @@ export const setupCliWorld = async (
       WORKFLOW_VERCEL_TEAM: flags.team,
     });
     vercelEnvVars = await inferVercelEnvVars();
-  } else if (
-    flags.backend === 'local' ||
-    flags.backend === '@workflow/world-local'
-  ) {
+  } else if (backend === 'local' || backend === '@workflow/world-local') {
+    if (flags.port) {
+      writeEnvVars({
+        WORKFLOW_LOCAL_BASE_URL: `http://localhost:${flags.port}`,
+      });
+    }
     try {
       await inferLocalWorldEnvVars();
     } catch (error) {

@@ -1,5 +1,8 @@
 import { resolve } from 'node:path';
-import { loadWorkflowConfig } from '@workflow/config/load';
+import {
+  type LoadedWorkflowConfig,
+  loadWorkflowConfig,
+} from '@workflow/config/load';
 import { config as loadDotEnv } from 'dotenv';
 import type { BuildTarget, WorkflowConfig } from './types.js';
 
@@ -13,6 +16,15 @@ export function resolveWorkflowCwd(): string {
   return resolve(process.cwd(), raw);
 }
 
+export async function loadProjectWorkflowConfig(
+  configFile?: string
+): Promise<LoadedWorkflowConfig> {
+  const cwd = resolveWorkflowCwd();
+  loadDotEnv({ path: resolve(cwd, '.env.local'), quiet: true });
+  loadDotEnv({ path: resolve(cwd, '.env'), quiet: true });
+  return loadWorkflowConfig({ cwd, configFile });
+}
+
 export const getWorkflowConfig = async (
   options: {
     buildTarget?: BuildTarget;
@@ -22,19 +34,7 @@ export const getWorkflowConfig = async (
 ): Promise<WorkflowConfig> => {
   const { buildTarget = 'standalone', workflowManifest, configFile } = options;
   const workingDir = resolveWorkflowCwd();
-  loadDotEnv({
-    path: resolve(workingDir, '.env.local'),
-    quiet: true,
-  });
-  loadDotEnv({
-    path: resolve(workingDir, '.env'),
-    quiet: true,
-  });
-
-  const loadedConfig = await loadWorkflowConfig({
-    cwd: workingDir,
-    configFile,
-  });
+  const loadedConfig = await loadProjectWorkflowConfig(configFile);
   const fileConfig = loadedConfig.config;
   const config: WorkflowConfig = {
     dirs:

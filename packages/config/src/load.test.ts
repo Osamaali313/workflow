@@ -10,6 +10,10 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { loadWorkflowConfig } from './load.js';
+import {
+  getRuntimeWorkflowConfig,
+  setRuntimeWorkflowConfig,
+} from './runtime.js';
 import type { RuntimeWorkflowConfig } from './runtime-binding.js';
 import { WorkflowConfigSchema } from './schema.js';
 
@@ -29,6 +33,7 @@ function createProject(files: Record<string, string>): string {
 }
 
 afterEach(() => {
+  setRuntimeWorkflowConfig(undefined);
   delete (globalThis as { __workflowWorldImports?: number })
     .__workflowWorldImports;
   for (const dir of tempDirs.splice(0)) {
@@ -60,6 +65,7 @@ describe('loadWorkflowConfig', () => {
       world: undefined,
       queue: { namespace: 'app' },
     });
+    expect(getRuntimeWorkflowConfig()).toBe(runtime.default);
   });
 
   it('loads the nearest TypeScript config without merging parents', async () => {

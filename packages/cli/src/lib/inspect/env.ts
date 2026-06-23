@@ -20,7 +20,7 @@ import {
  * Note: WORKFLOW_VERCEL_* env vars are read back via getEnvVars() and passed
  * to createVercelWorld() explicitly — they are NOT read by createWorld().
  */
-export const writeEnvVars = (envVars: Record<string, string>) => {
+export const writeEnvVars = (envVars: Record<string, string | undefined>) => {
   Object.entries(envVars).forEach(([key, value]) => {
     if (
       value === undefined ||

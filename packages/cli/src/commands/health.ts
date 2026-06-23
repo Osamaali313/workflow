@@ -162,7 +162,7 @@ async function verifyLocalServerAccessible(
   );
 }
 
-function isLocalBackend(backend: string): boolean {
+function isLocalBackend(backend: string | undefined): boolean {
   return backend === 'local' || backend === '@workflow/world-local';
 }
 
@@ -263,30 +263,6 @@ export default class Health extends BaseCommand {
   public async run(): Promise<void> {
     const { flags } = await this.parse(Health);
 
-    // For local backend, set up port configuration early
-    if (isLocalBackend(flags.backend)) {
-      // If user specifies a port, set the env var so the World uses it
-      if (flags.port) {
-        process.env.WORKFLOW_LOCAL_BASE_URL = `http://localhost:${flags.port}`;
-      }
-      // Set default WORKFLOW_LOCAL_BASE_URL if not already set
-      // We use WORKFLOW_LOCAL_BASE_URL instead of PORT to avoid conflicts
-      // with other tools (like Next.js) that also use the PORT env var
-      if (!process.env.WORKFLOW_LOCAL_BASE_URL && !process.env.PORT) {
-        process.env.WORKFLOW_LOCAL_BASE_URL = `http://localhost:${DEFAULT_LOCAL_PORT}`;
-      }
-
-      // Verify the server is accessible before proceeding
-      const accessible = await this.verifyLocalServer(
-        flags.json,
-        flags.verbose,
-        flags.port
-      );
-      if (!accessible) {
-        process.exit(1);
-      }
-    }
-
     const world = await setupCliWorld(flags, this.config.version);
     if (!world) {
       throw new Error(
@@ -294,12 +270,22 @@ export default class Health extends BaseCommand {
       );
     }
 
+    const backend =
+      flags.backend ?? process.env.WORKFLOW_TARGET_WORLD ?? 'configured World';
+    if (isLocalBackend(backend)) {
+      const accessible = await this.verifyLocalServer(
+        flags.json,
+        flags.verbose,
+        flags.port
+      );
+      if (!accessible) process.exit(1);
+    }
+
     const { healthCheck } = await import('@workflow/core/runtime');
     const endpoints = getEndpointsToCheck(flags.endpoint);
 
     if (!flags.json) {
-      const backendName =
-        flags.backend === 'local' ? 'local server' : flags.backend;
+      const backendName = backend === 'local' ? 'local server' : backend;
       logger.log(
         chalk.gray(`Running queue-based health check against ${backendName}...`)
       );
@@ -312,7 +298,7 @@ export default class Health extends BaseCommand {
       verbose: flags.verbose,
     });
 
-    this.outputResults(results, flags.json, flags.backend);
+    this.outputResults(results, flags.json, backend);
 
     const allHealthy = results.every((r) => r.healthy);
     process.exit(allHealthy ? 0 : 1);

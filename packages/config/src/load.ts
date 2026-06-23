@@ -138,7 +138,7 @@ export async function loadWorkflowConfig(
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nexport default { world, queue: ${JSON.stringify(config.queue)} };\n`
+    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nglobalThis[Symbol.for('@workflow/queue/namespace')] = config.queue?.namespace;\nexport default config;\n`
   );
 
   return { path, runtimePath, config };

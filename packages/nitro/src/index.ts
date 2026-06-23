@@ -487,9 +487,7 @@ function addVirtualHandler(
   };
   const runtimeConfigSetup = hasRuntimeConfig
     ? `
-      import workflowConfig from "@workflow/config/runtime-binding";
-      globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;
-      globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;
+      import "@workflow/config/runtime-binding";
     `
     : '';
 

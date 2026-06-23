@@ -40,7 +40,8 @@ For complete details on pricing, usage limits, and included allotments on Vercel
 - **[Vercel limits](https://vercel.com/docs/limits)** — Platform-wide limits including Workflow-specific constraints
 - **[Vercel Hobby plan](https://vercel.com/docs/plans/hobby)** — Free tier included usage for Workflow and other resources
 
-For self-hosted deployments, use the [Postgres World](/worlds/postgres). For local development, use the [Local World](/worlds/local).
+For self-hosted deployments, use the [Postgres World](/docs/deploying/world/postgres-world).
+For local development, use the [Local World](/docs/deploying/world/local-world).
 
 ## Limitations
 
@@ -90,22 +91,6 @@ Learn more in the [Observability](/docs/observability) documentation.
 ## Configuration
 
 The Vercel World requires no configuration when deployed to Vercel. For advanced use cases, you can override settings programmatically via `createVercelWorld()`.
-
-### `WORKFLOW_VERCEL_ENV`
-
-The Vercel environment to use. Options: `production`, `preview`, `development`. Automatically detected.
-
-### `WORKFLOW_VERCEL_AUTH_TOKEN`
-
-Authentication token for API requests. Automatically detected.
-
-### `WORKFLOW_VERCEL_PROJECT`
-
-Vercel project ID for API requests. Automatically detected.
-
-### `WORKFLOW_VERCEL_TEAM`
-
-Vercel team ID for API requests. Automatically detected.
 
 ### `WORKFLOW_VERCEL_BACKEND_URL`
 

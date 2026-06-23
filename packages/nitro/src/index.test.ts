@@ -146,7 +146,7 @@ describe('@workflow/nitro virtual handlers', () => {
     expect(source).not.toContain('@workflow/config');
   });
 
-  it('installs runtime config before importing unbundled dev routes', async () => {
+  it('imports runtime config before unbundled dev routes', async () => {
     const project = createProject('export default {};');
     const nitro = createNitroStub({
       routing: false,
@@ -157,16 +157,9 @@ describe('@workflow/nitro virtual handlers', () => {
     await nitroModule.setup(nitro);
 
     const source = nitro.options.virtual['#workflow/workflows.mjs'];
-    const assignment =
-      'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;';
-    const namespaceAssignment =
-      'globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;';
-    expect(source).toContain(
-      'import workflowConfig from "@workflow/config/runtime-binding";'
-    );
-    expect(source).toContain(assignment);
-    expect(source).toContain(namespaceAssignment);
-    expect(source.indexOf(assignment)).toBeLessThan(
+    const binding = 'import "@workflow/config/runtime-binding";';
+    expect(source).toContain(binding);
+    expect(source.indexOf(binding)).toBeLessThan(
       source.indexOf('import(currentImportPath)')
     );
   });
@@ -221,15 +214,7 @@ describe('@workflow/nitro workflow.config.ts', () => {
       )
     ).toBe(true);
     const source = nitro.options.virtual['#workflow/workflows.mjs'];
-    expect(source).toContain(
-      'import workflowConfig from "@workflow/config/runtime-binding";'
-    );
-    expect(source).toContain(
-      'globalThis[Symbol.for("@workflow/config/runtime")] = workflowConfig;'
-    );
-    expect(source).toContain(
-      'globalThis[Symbol.for("@workflow/queue/namespace")] = workflowConfig.queue?.namespace;'
-    );
+    expect(source).toContain('import "@workflow/config/runtime-binding";');
   });
 
   it('prefers environment variables over workflow.config.ts', async () => {

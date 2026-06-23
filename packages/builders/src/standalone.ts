@@ -45,6 +45,7 @@ export class StandaloneBuilder extends BaseBuilder {
 
     await this.createWebhookBundle({
       outfile: webhookBundlePath,
+      bundle: true,
     });
   }
 }

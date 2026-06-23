@@ -1526,7 +1526,10 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
           write: true,
           keepNames: true,
           minify: false,
-          external: ['@aws-sdk/credential-provider-web-identity'],
+          external: [
+            '@aws-sdk/credential-provider-web-identity',
+            ...(this.config.externalPackages ?? []),
+          ],
           plugins: this.runtimeConfigPlugins,
         });
 
@@ -1715,7 +1718,10 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
         keepNames: true,
         minify: false,
         define: importMetaDefine,
-        external: ['@aws-sdk/credential-provider-web-identity'],
+        external: [
+          '@aws-sdk/credential-provider-web-identity',
+          ...(this.config.externalPackages ?? []),
+        ],
         plugins: this.runtimeConfigPlugins,
       });
       this.logEsbuildMessages(finalResult, 'combined bundle', true);
@@ -1998,8 +2004,7 @@ export const OPTIONS = handler;`;
       ],
       sourcemap: this.resolveSourcemap(EMIT_SOURCEMAPS_FOR_DEBUGGING),
       mainFields: ['module', 'main'],
-      // Don't externalize anything - bundle everything including workflow packages
-      external: [],
+      external: this.config.externalPackages ?? [],
       plugins: this.runtimeConfigPlugins,
     });
 

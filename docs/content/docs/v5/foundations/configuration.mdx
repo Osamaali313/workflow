@@ -104,7 +104,7 @@ import { createLocalWorld } from "@workflow/world-local";
 import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
 
 const world: WorldProvider = () => {
-  switch (process.env.DEPLOYMENT_ENV) {
+  switch (process.env.APP_ENV) {
     case "production":
     case "preview":
       return createPostgresWorld({
@@ -115,7 +115,7 @@ const world: WorldProvider = () => {
       return createLocalWorld();
     default:
       throw new Error(
-        `Unexpected DEPLOYMENT_ENV: ${process.env.DEPLOYMENT_ENV}`,
+        `Unexpected APP_ENV: ${process.env.APP_ENV}`,
       );
   }
 };
@@ -133,7 +133,7 @@ database.
 | --- | --- | --- |
 | `build.dirs` | `string[]` | Directories to scan for workflow code |
 | `build.projectRoot` | `string` | Root for tracing, module resolution, and TypeScript configuration |
-| `build.externalPackages` | `string[]` | Packages excluded from generated bundles |
+| `build.externalPackages` | `string[]` | Packages excluded from generated bundles. Not supported by the direct `vercel-build-output-api` target |
 | `build.sourcemap` | `boolean \| "inline" \| "linked" \| "external" \| "both"` | Source map mode for generated bundles |
 | `build.manifest.public` | `boolean` | Expose the workflow manifest over HTTP |
 | `build.manifest.output` | `string` | Write the workflow manifest to this path |
