@@ -463,21 +463,24 @@ export function withWorkflow(
     if (!nextConfig.turbopack.rules) {
       nextConfig.turbopack.rules = {};
     }
+    const nextVersion = resolveNextVersion(process.cwd());
     if (runtimeConfigPath) {
       const existingResolveAlias = isPlainObject(
         nextConfig.turbopack.resolveAlias
       )
         ? nextConfig.turbopack.resolveAlias
         : {};
-      const configuredRoot =
-        nextConfig.outputFileTracingRoot || nextConfig.turbopack.root;
-      const turbopackRoot = configuredRoot
-        ? resolve(configuredRoot)
-        : (
-            require('next/dist/lib/find-root') as {
-              findRootDirAndLockFiles(cwd: string): { rootDir: string };
-            }
-          ).findRootDirAndLockFiles(process.cwd()).rootDir;
+      const turbopackRoot = resolve(
+        nextConfig.turbopack.root ??
+          nextConfig.outputFileTracingRoot ??
+          (semver.gte(nextVersion, '16.0.0')
+            ? (
+                require('next/dist/lib/find-root') as {
+                  findRootDirAndLockFiles(cwd: string): { rootDir: string };
+                }
+              ).findRootDirAndLockFiles(process.cwd()).rootDir
+            : process.cwd())
+      );
       const runtimeConfigRequest = relative(
         turbopackRoot,
         runtimeConfigPath
@@ -490,7 +493,6 @@ export function withWorkflow(
       };
     }
     const existingRules = nextConfig.turbopack.rules as any;
-    const nextVersion = resolveNextVersion(process.cwd());
     const supportsTurboCondition = semver.gte(nextVersion, 'v16.0.0');
 
     const shouldWatch = process.env.NODE_ENV === 'development';

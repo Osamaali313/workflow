@@ -1,8 +1,13 @@
 import { createBuildQueue } from '@workflow/builders';
+import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
 import type { Plugin } from 'vite';
 import { SvelteKitBuilder } from './builder.js';
+
+export const loadedWorkflowConfig = await loadWorkflowConfig({
+  cwd: process.cwd(),
+});
 
 export interface WorkflowPluginOptions {
   /**
@@ -15,8 +20,12 @@ export interface WorkflowPluginOptions {
 }
 
 export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
-  const builder = new SvelteKitBuilder({ sourcemap: options.sourcemap });
+  const builder = new SvelteKitBuilder({
+    sourcemap: options.sourcemap,
+    workflowConfig: loadedWorkflowConfig,
+  });
   const enqueue = createBuildQueue();
+  const initialBuild = builder.build();
 
   return [
     workflowTransformPlugin() as Plugin,
@@ -68,6 +77,19 @@ export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
               : typeof existing === 'function'
                 ? async (chunk) => `${banner}\n${await existing(chunk)}`
                 : `${banner}\n${existing}`;
+        }
+      },
+      enforce: 'pre',
+      async config() {
+        await initialBuild;
+        if (!loadedWorkflowConfig.runtimePath) return;
+        return {
+          ssr: { noExternal: ['workflow', '@workflow/core'] },
+        };
+      },
+      resolveId(source) {
+        if (source === '@workflow/config/runtime-binding') {
+          return loadedWorkflowConfig.runtimePath;
         }
       },
     },

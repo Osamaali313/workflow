@@ -375,6 +375,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/rollup':
         specifier: workspace:*
         version: link:../rollup
@@ -945,6 +948,9 @@ importers:
       '@workflow/builders':
         specifier: workspace:*
         version: link:../builders
+      '@workflow/config':
+        specifier: workspace:*
+        version: link:../config
       '@workflow/rollup':
         specifier: workspace:*
         version: link:../rollup

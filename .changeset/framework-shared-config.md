@@ -1,6 +1,8 @@
 ---
 "@workflow/next": minor
 "@workflow/nitro": minor
+"@workflow/sveltekit": minor
+"@workflow/astro": minor
 ---
 
-Add typed shared configuration support to the Next.js and Nitro integrations.
+Add typed shared configuration support to framework integrations.

@@ -23,19 +23,29 @@ const SVELTEKIT_VIRTUAL_MODULES = [
 ];
 
 export class SvelteKitBuilder extends BaseBuilder {
-  constructor(config?: Partial<SvelteKitConfig>) {
-    const workingDir = config?.workingDir || process.cwd();
+  constructor(config: Partial<SvelteKitConfig> = {}) {
+    const workingDir = config.workingDir ?? process.cwd();
+    const build = config.workflowConfig?.config.build;
 
     super({
       ...config,
-      dirs: ['workflows', 'src/workflows', 'routes', 'src/routes'],
+      dirs: config.dirs ??
+        build?.dirs ?? ['workflows', 'src/workflows', 'routes', 'src/routes'],
       buildTarget: 'sveltekit' as const,
       stepsBundlePath: '', // unused in base
       workflowsBundlePath: '', // unused in base
       webhookBundlePath: '', // unused in base
       workingDir,
-      externalPackages: [...SVELTEKIT_VIRTUAL_MODULES],
-      sourcemap: config?.sourcemap,
+      projectRoot:
+        config.projectRoot ??
+        (build?.projectRoot
+          ? resolve(workingDir, build.projectRoot)
+          : undefined),
+      externalPackages: [
+        ...SVELTEKIT_VIRTUAL_MODULES,
+        ...(config.externalPackages ?? build?.externalPackages ?? []),
+      ],
+      sourcemap: config.sourcemap,
     });
   }
 

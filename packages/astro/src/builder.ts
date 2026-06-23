@@ -20,18 +20,26 @@ const WORKFLOW_ROUTES = [
 ];
 
 export class LocalBuilder extends BaseBuilder {
-  constructor(options?: {
-    sourcemap?: boolean | 'inline' | 'linked' | 'external' | 'both';
-  }) {
+  constructor(config: Partial<AstroConfig> = {}) {
+    const workingDir = config.workingDir ?? process.cwd();
+    const build = config.workflowConfig?.config.build;
+
     super({
-      dirs: ['src/pages', 'src/workflows'],
+      ...config,
+      dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
       buildTarget: 'astro' as const,
       stepsBundlePath: '', // unused in base
       workflowsBundlePath: '', // unused in base
       webhookBundlePath: '', // unused in base
-      workingDir: process.cwd(),
+      workingDir,
+      projectRoot:
+        config.projectRoot ??
+        (build?.projectRoot
+          ? resolve(workingDir, build.projectRoot)
+          : undefined),
+      externalPackages: config.externalPackages ?? build?.externalPackages,
       debugFilePrefix: '_', // Prefix with underscore so Astro ignores debug files
-      sourcemap: options?.sourcemap,
+      sourcemap: config.sourcemap,
     });
   }
 
@@ -162,14 +170,22 @@ export const prerender = false;`
 }
 
 export class VercelBuilder extends VercelBuildOutputAPIBuilder {
-  constructor(config?: Partial<AstroConfig>) {
-    const workingDir = config?.workingDir || process.cwd();
+  constructor(config: Partial<AstroConfig> = {}) {
+    const workingDir = config.workingDir ?? process.cwd();
+    const build = config.workflowConfig?.config.build;
     super({
       ...createBaseBuilderConfig({
         workingDir,
-        dirs: ['src/pages', 'src/workflows'],
-        runtime: config?.runtime,
-        sourcemap: config?.sourcemap,
+        dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
+        projectRoot:
+          config.projectRoot ??
+          (build?.projectRoot
+            ? resolve(workingDir, build.projectRoot)
+            : undefined),
+        externalPackages: config.externalPackages ?? build?.externalPackages,
+        runtime: config.runtime,
+        sourcemap: config.sourcemap,
+        workflowConfig: config.workflowConfig,
       }),
       buildTarget: 'vercel-build-output-api',
       debugFilePrefix: '_',

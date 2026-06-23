@@ -33,6 +33,16 @@ describe('stripWorkflowQueueTriggersFromConfig', () => {
     });
   });
 
+  it('removes namespaced workflow queue triggers', () => {
+    expect(
+      stripWorkflowQueueTriggersFromConfig({
+        experimentalTriggers: [
+          { ...WORKFLOW_QUEUE_TRIGGER, topic: '__myapp_wkf_workflow_*' },
+        ],
+      })
+    ).toEqual({});
+  });
+
   it('leaves configs without workflow triggers unchanged', () => {
     const config = {
       runtime: 'nodejs',

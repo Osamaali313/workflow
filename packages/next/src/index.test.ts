@@ -345,7 +345,7 @@ describe('withWorkflow builder config', () => {
         'configured-external'
       );
       const runtimeConfigRequest = relative(
-        '/explicit-root',
+        turbopackRoot,
         join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
       ).replaceAll('\\', '/');
       expect(

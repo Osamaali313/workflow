@@ -1,4 +1,5 @@
 import { createBuildQueue } from '@workflow/builders';
+import { loadWorkflowConfig } from '@workflow/config/load';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
 import type { AstroIntegration, HookParameters } from 'astro';
@@ -17,7 +18,8 @@ export interface WorkflowPluginOptions {
 export function workflowPlugin(
   options: WorkflowPluginOptions = {}
 ): AstroIntegration {
-  const builder = new LocalBuilder({ sourcemap: options.sourcemap });
+  const workflowConfig = loadWorkflowConfig({ cwd: process.cwd() });
+  let builder: LocalBuilder;
   const enqueue = createBuildQueue();
 
   return {
@@ -26,6 +28,11 @@ export function workflowPlugin(
       'astro:config:setup': async ({
         updateConfig,
       }: HookParameters<'astro:config:setup'>) => {
+        const loadedConfig = await workflowConfig;
+        builder = new LocalBuilder({
+          sourcemap: options.sourcemap,
+          workflowConfig: loadedConfig,
+        });
         // Use local builder
         if (!process.env.VERCEL_DEPLOYMENT_ID) {
           try {
@@ -39,11 +46,23 @@ export function workflowPlugin(
         }
         updateConfig({
           vite: {
+            ...(loadedConfig.runtimePath
+              ? { ssr: { noExternal: ['workflow', '@workflow/core'] } }
+              : {}),
             plugins: [
               workflowTransformPlugin(),
+              {
+                name: 'workflow:runtime-config',
+                enforce: 'pre',
+                resolveId(source) {
+                  if (source === '@workflow/config/runtime-binding') {
+                    return loadedConfig.runtimePath;
+                  }
+                },
+              },
               // Cast needed due to Astro using a different internal Vite version
               workflowHotUpdatePlugin({
-                builder,
+                builder: () => builder,
                 enqueue,
               }) as any,
             ],
@@ -54,6 +73,7 @@ export function workflowPlugin(
         if (process.env.VERCEL_DEPLOYMENT_ID) {
           const vercelBuilder = new VercelBuilder({
             sourcemap: options.sourcemap,
+            workflowConfig: await workflowConfig,
           });
           await vercelBuilder.build();
         }
