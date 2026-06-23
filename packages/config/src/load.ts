@@ -38,15 +38,11 @@ export type LoadWorkflowConfigOptions = {
   integration?: WorkflowIntegrationType;
 };
 
-export type LoadedWorkflowConfig =
-  | { path: undefined; runtimePath: undefined; config: WorkflowConfig }
-  | {
-      path: string;
-      runtimePath: string | undefined;
-      config: WorkflowConfig;
-    };
-
-type FoundWorkflowConfig = Extract<LoadedWorkflowConfig, { path: string }>;
+export type LoadedWorkflowConfig = {
+  path: string | undefined;
+  runtimePath: string | undefined;
+  config: WorkflowConfig;
+};
 
 async function discoverWorkflowConfig({
   cwd,
@@ -90,14 +86,10 @@ async function discoverWorkflowConfig({
   );
 }
 
-export async function loadWorkflowConfig(
-  options: LoadWorkflowConfigOptions
-): Promise<LoadedWorkflowConfig> {
-  const path = await discoverWorkflowConfig(options);
-  if (!path) {
-    return { path: undefined, runtimePath: undefined, config: {} };
-  }
-
+async function readWorkflowConfig(
+  path: string,
+  integration: WorkflowIntegrationType | undefined
+): Promise<WorkflowConfig> {
   const configModule = await createJiti(import.meta.url, {
     interopDefault: false,
   }).import<{ default: unknown }>(path);
@@ -111,40 +103,60 @@ export async function loadWorkflowConfig(
   );
 
   const config = WorkflowConfigSchema.parse(rawConfig);
+  if (!integration || !config.integration) return config;
+
   assert(
-    !options.integration ||
-      !config.integration ||
-      config.integration.type === options.integration,
-    `${basename(path)} configures "${config.integration?.type}" but was loaded by "${options.integration}".`
+    config.integration.type === integration,
+    `${basename(path)} configures "${config.integration.type}" but was loaded by "${integration}".`
   );
+  return config;
+}
 
-  const namespace =
-    process.env.WORKFLOW_QUEUE_NAMESPACE ?? config.queue?.namespace;
-  const queue = namespace === undefined ? undefined : { namespace };
+export async function loadWorkflowConfig(
+  options: LoadWorkflowConfigOptions
+): Promise<LoadedWorkflowConfig> {
+  const path = await discoverWorkflowConfig(options);
+  let config: WorkflowConfig = path
+    ? await readWorkflowConfig(path, options.integration)
+    : {};
 
-  if (!config.world && !queue) {
+  if (process.env.WORKFLOW_QUEUE_NAMESPACE !== undefined) {
+    config = WorkflowConfigSchema.parse({
+      ...config,
+      queue: { namespace: process.env.WORKFLOW_QUEUE_NAMESPACE },
+    });
+  }
+
+  if (!config.world && !config.queue) {
     return { path, runtimePath: undefined, config };
   }
 
-  const runtimeDir = join(dirname(path), 'node_modules', '.cache', 'workflow');
-  let world = config.world;
-  assert(
-    !world ||
-      (!isAbsolute(world) &&
-        !win32.isAbsolute(world) &&
-        !/^[a-z][a-z\d+.-]*:/i.test(world)),
-    `World module must be a relative path or package specifier: ${world}`
+  const runtimeDir = join(
+    path ? dirname(path) : options.cwd,
+    'node_modules',
+    '.cache',
+    'workflow'
   );
-  if (world?.startsWith('.')) {
-    const worldPath = resolve(dirname(path), world);
+  let world = config.world;
+  if (world) {
+    assert(path);
     assert(
-      existsSync(worldPath) && statSync(worldPath).isFile(),
-      `World module not found: ${world}`
+      !isAbsolute(world) &&
+        !win32.isAbsolute(world) &&
+        !/^[a-z][a-z\d+.-]*:/i.test(world),
+      `World module must be a relative path or package specifier: ${world}`
     );
-    world = relative(runtimeDir, worldPath).replaceAll('\\', '/');
-    if (!world.startsWith('.')) world = `./${world}`;
-  } else if (world) {
-    createJiti(path).esmResolve(world);
+    if (world.startsWith('.')) {
+      const worldPath = resolve(dirname(path), world);
+      assert(
+        existsSync(worldPath) && statSync(worldPath).isFile(),
+        `World module not found: ${world}`
+      );
+      world = relative(runtimeDir, worldPath).replaceAll('\\', '/');
+      if (!world.startsWith('.')) world = `./${world}`;
+    } else {
+      createJiti(path).esmResolve(world);
+    }
   }
 
   const runtimePath = join(runtimeDir, 'runtime-config.mjs');
@@ -154,7 +166,7 @@ export async function loadWorkflowConfig(
   mkdirSync(runtimeDir, { recursive: true });
   writeFileSync(
     runtimePath,
-    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
+    `const world = ${worldFactory};\nconst config = { world, queue: ${JSON.stringify(config.queue)} };\nglobalThis[Symbol.for('@workflow/config/runtime')] = config;\nexport default config;\n`
   );
 
   return { path, runtimePath, config };
@@ -163,9 +175,10 @@ export async function loadWorkflowConfig(
 export function createRuntimeWorkflowConfig({
   path,
   config,
-}: FoundWorkflowConfig): RuntimeWorkflowConfig {
+}: LoadedWorkflowConfig): RuntimeWorkflowConfig {
   if (!config.world) return { queue: config.queue };
 
+  assert(path);
   const world = config.world;
   const jiti = createJiti(path, { interopDefault: false });
   return {

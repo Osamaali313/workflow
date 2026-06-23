@@ -2,6 +2,7 @@
 "@workflow/builders": minor
 "@workflow/cli": minor
 "@workflow/core": minor
+"@workflow/web": patch
 "workflow": minor
 ---
 

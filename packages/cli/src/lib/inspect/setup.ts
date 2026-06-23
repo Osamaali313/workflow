@@ -34,9 +34,7 @@ export const setupCliWorld = async (
   setVerboseMode(Boolean(flags.verbose));
 
   const loadedConfig = await loadProjectWorkflowConfig();
-  setRuntimeWorkflowConfig(
-    loadedConfig.path ? createRuntimeWorkflowConfig(loadedConfig) : undefined
-  );
+  setRuntimeWorkflowConfig(createRuntimeWorkflowConfig(loadedConfig));
 
   const backend =
     flags.backend ??
