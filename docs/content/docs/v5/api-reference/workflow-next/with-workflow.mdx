@@ -77,9 +77,9 @@ Use the smallest directory that contains every workspace package imported by you
 
 ## Options
 
-Use [`workflow.config.ts`](/docs/foundations/configuration) for shared build and
-Next.js settings. The optional second argument to `withWorkflow` overrides
-environment variables and `workflow.config.ts`.
+Use [`workflow.config.ts`](/docs/foundations/configuration) for World, queue,
+and shared build settings. The optional second argument to `withWorkflow`
+overrides environment variables and `workflow.config.ts`.
 
 ```typescript title="next.config.ts" lineNumbers
 import type { NextConfig } from "next";
@@ -126,7 +126,9 @@ which accepts the same values plus `'0'` / `'1'` as aliases for `false` /
 `WORKFLOW_SOURCEMAP` > `workflow.config.ts` > per-bundle default.
 
 <Callout type="info">
-The `workflows.local` options only affect local development. When deployed to Vercel, the runtime ignores `local` settings and uses the Vercel world automatically.
+The `workflows.local` options only affect local development. When `world` is not
+configured, the runtime automatically uses the Local World locally and the
+Vercel World on Vercel.
 </Callout>
 
 ## Exporting a Function

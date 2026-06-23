@@ -205,17 +205,21 @@ For higher worker concurrency, Graphile Worker recommends setting `maxPoolSize` 
 
 ### Programmatic configuration
 
-{/*@skip-typecheck: incomplete code sample*/}
+Point `world` in `workflow.config.ts` at a provider module:
 
-```typescript title="workflow.config.ts" lineNumbers
+```typescript title="workflow.world.ts" lineNumbers
+import type { WorldProvider } from "workflow/config";
 import { createWorld } from "@workflow/world-postgres";
 
-const world = createWorld({
-  connectionString: "postgres://user:password@host:5432/database",
-  jobPrefix: "myapp_",
-  queueConcurrency: 50,
-  maxPoolSize: 52, // overrides WORKFLOW_POSTGRES_MAX_POOL_SIZE
-});
+const world: WorldProvider = () =>
+  createWorld({
+    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+    jobPrefix: "myapp_",
+    queueConcurrency: 50,
+    maxPoolSize: 52, // overrides WORKFLOW_POSTGRES_MAX_POOL_SIZE
+  });
+
+export default world;
 ```
 
 ## How It Works
@@ -241,15 +245,17 @@ Ensure your deployment has:
 
 1. Network access to your PostgreSQL database
 2. Environment variables configured correctly
-3. The `start()` function called on server initialization
+3. The provider selected in `workflow.config.ts`, or `start()` called when you construct the World directly
 
 <Callout type="info">
-The Postgres World is not compatible with Vercel deployments. On Vercel, workflows automatically use the [Vercel World](/worlds/vercel) with zero configuration.
+The Postgres World is not compatible with Vercel deployments. Omit `world` to
+select the [Vercel World](/worlds/vercel) automatically on Vercel, or select an
+appropriate World inside your provider based on the deployment environment.
 </Callout>
 
 ## Limitations
 
-- **Requires long-running process** - Must call `start()` on server initialization; not compatible with serverless platforms
+- **Requires long-running process** - Configured providers start automatically; directly constructed Worlds require `start()` during server initialization
 - **PostgreSQL infrastructure** - Requires a PostgreSQL database (self-hosted or managed)
 - **Not compatible with Vercel** - Use the [Vercel World](/worlds/vercel) for Vercel deployments
 

@@ -37,6 +37,31 @@ afterEach(() => {
 });
 
 describe('loadWorkflowConfig', () => {
+  it('returns empty config when no config file exists', async () => {
+    const project = createProject({});
+
+    await expect(loadWorkflowConfig({ cwd: project })).resolves.toEqual({
+      path: undefined,
+      runtimePath: undefined,
+      config: {},
+    });
+  });
+
+  it('allows config without a World provider', async () => {
+    const project = createProject({
+      'workflow.config.ts': `export default { queue: { namespace: 'app' } };`,
+    });
+    const loaded = await loadWorkflowConfig({ cwd: project });
+    const runtime = (await import(
+      pathToFileURL(loaded.runtimePath as string).href
+    )) as { default: RuntimeWorkflowConfig };
+
+    expect(runtime.default).toEqual({
+      world: undefined,
+      queue: { namespace: 'app' },
+    });
+  });
+
   it('loads the nearest TypeScript config without merging parents', async () => {
     const project = createProject({
       'workflow.config.ts': `export default { build: { dirs: ['parent'] } };`,

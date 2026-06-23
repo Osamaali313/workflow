@@ -60,16 +60,21 @@ Maximum number of concurrent queue workers. Default: `100`
 
 ### Programmatic configuration
 
-{/* @skip-typecheck: incomplete code sample */}
-```typescript title="workflow.config.ts" lineNumbers
+Point `world` in `workflow.config.ts` at a provider module:
+
+```typescript title="workflow.world.ts" lineNumbers
+import type { WorldProvider } from "workflow/config";
 import { createLocalWorld } from "@workflow/world-local";
 
-const world = createLocalWorld({
-  dataDir: "./custom-workflow-data",
-  port: 5173,
-  // baseUrl overrides port if set
-  baseUrl: "https://local.example.com:3000",
-});
+const world: WorldProvider = () =>
+  createLocalWorld({
+    dataDir: "./custom-workflow-data",
+    port: 5173,
+    // baseUrl overrides port if set
+    baseUrl: "https://local.example.com:3000",
+  });
+
+export default world;
 ```
 
 ## Limitations

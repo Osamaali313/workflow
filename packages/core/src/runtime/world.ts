@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { getRuntimeWorkflowConfig } from '@workflow/config/runtime';
@@ -149,9 +150,11 @@ async function resolveWorld(): Promise<ResolvedWorld> {
   }
 
   if (config.world) {
+    const world = await config.world();
+    assert(world, 'Configured World provider must return a World.');
     return {
       type: 'configured',
-      world: await config.world(),
+      world,
     };
   }
 

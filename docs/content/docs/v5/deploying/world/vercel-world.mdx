@@ -113,20 +113,23 @@ Custom base URL for the Vercel workflow API. Automatically detected.
 
 ### Programmatic configuration
 
-{/*@skip-typecheck: incomplete code sample*/}
+Point `world` in `workflow.config.ts` at a provider module:
 
-```typescript title="workflow.config.ts" lineNumbers
+```typescript title="workflow.world.ts" lineNumbers
+import type { WorldProvider } from "workflow/config";
 import { createVercelWorld } from "@workflow/world-vercel";
 
-const world = createVercelWorld({
-  token: process.env.WORKFLOW_VERCEL_AUTH_TOKEN,
-  baseUrl: "https://api.vercel.com/v1/workflow",
-  projectConfig: {
-    projectId: "my-project",
-    teamId: "my-team",
-    environment: "production",
-  },
-});
+const world: WorldProvider = () =>
+  createVercelWorld({
+    token: process.env.WORKFLOW_VERCEL_AUTH_TOKEN,
+    projectConfig: {
+      projectId: "my-project",
+      teamId: "my-team",
+      environment: "production",
+    },
+  });
+
+export default world;
 ```
 
 ## Versioning

@@ -74,6 +74,15 @@ describe('configured World', () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it('rejects a configured provider that returns no World', async () => {
+    delete process.env.WORKFLOW_TARGET_WORLD;
+    setRuntimeWorkflowConfig({ world: () => undefined as never });
+
+    await expect(getWorld()).rejects.toThrow(
+      'Configured World provider must return a World.'
+    );
+  });
+
   it('does not cache a World closed during startup', async () => {
     delete process.env.WORKFLOW_TARGET_WORLD;
     let finishStart!: () => void;
