@@ -102,6 +102,7 @@ Point `world` in `workflow.config.ts` at a World module:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import { createVercelWorld } from "@workflow/world-vercel";
+import type { World } from "workflow/config";
 
 const world = createVercelWorld({
   token: process.env.WORKFLOW_VERCEL_AUTH_TOKEN,
@@ -110,7 +111,7 @@ const world = createVercelWorld({
     teamId: "my-team",
     environment: "production",
   },
-});
+}) satisfies World;
 
 export default world;
 ```

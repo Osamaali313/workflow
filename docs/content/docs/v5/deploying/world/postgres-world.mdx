@@ -26,8 +26,9 @@ Create the World:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import { createWorld } from "@workflow/world-postgres";
+import type { World } from "workflow/config";
 
-const world = createWorld();
+const world = createWorld() satisfies World;
 
 export default world;
 ```
@@ -221,13 +222,14 @@ Configure the World in `workflow.world.ts`:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import { createWorld } from "@workflow/world-postgres";
+import type { World } from "workflow/config";
 
 const world = createWorld({
   connectionString: process.env.WORKFLOW_POSTGRES_URL!,
   jobPrefix: "myapp_",
   queueConcurrency: 50,
   maxPoolSize: 52, // overrides WORKFLOW_POSTGRES_MAX_POOL_SIZE
-});
+}) satisfies World;
 
 export default world;
 ```

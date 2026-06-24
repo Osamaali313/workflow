@@ -66,13 +66,14 @@ Point `world` in `workflow.config.ts` at a World module:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import { createLocalWorld } from "@workflow/world-local";
+import type { World } from "workflow/config";
 
 const world = createLocalWorld({
   dataDir: "./custom-workflow-data",
   port: 5173,
   // baseUrl overrides port if set
   baseUrl: "https://local.example.com:3000",
-});
+}) satisfies World;
 
 export default world;
 ```

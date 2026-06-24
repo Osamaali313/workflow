@@ -254,6 +254,14 @@ describe('withWorkflow builder config', () => {
         '@workflow/world/configured'
       ]
     ).toBe('./workflow.world.ts');
+
+    const webpackConfig = nextConfig.webpack?.(
+      { module: { rules: [] } },
+      {} as any
+    );
+    expect(webpackConfig?.resolve?.alias).toMatchObject({
+      '@workflow/world/configured': worldModule,
+    });
   });
 
   it('honors an explicit project root scan', async () => {

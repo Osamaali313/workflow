@@ -80,8 +80,22 @@ Use the smallest directory that contains every workspace package imported by you
 ## Options
 
 Use [`workflow.config.ts`](/docs/foundations/configuration) for the World and
-shared build settings. The optional second argument to `withWorkflow`
-overrides environment variables and `workflow.config.ts`.
+shared build settings:
+
+```typescript title="workflow.config.ts" lineNumbers
+import type { WorkflowConfig } from "workflow/config";
+
+const config = {
+  build: {
+    sourcemap: false,
+  },
+} satisfies WorkflowConfig;
+
+export default config;
+```
+
+Configure World-specific options in `workflow.world.ts`. The optional second
+argument to `withWorkflow` overrides environment variables and shared config.
 
 ```typescript title="next.config.ts" lineNumbers
 import type { NextConfig } from "next";

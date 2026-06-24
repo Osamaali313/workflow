@@ -34,19 +34,21 @@ export default config;
 
 ```typescript title="workflow.world.ts" lineNumbers
 import { createWorld } from "@workflow/world-postgres";
+import type { World } from "workflow/config";
 
 const world = createWorld({
   connectionString: process.env.WORKFLOW_POSTGRES_URL!,
   jobPrefix: "myapp_",
   queueConcurrency: 50,
   maxPoolSize: 52,
-});
+}) satisfies World;
 
 export default world;
 ```
 
-The World is bundled with the application. Keep credentials in environment
-variables rather than `workflow.config.ts`.
+The referenced TypeScript module is bundled and transpiled with the application,
+even when nothing else imports it. Keep credentials in environment variables
+rather than `workflow.config.ts`.
 
 ## Precedence
 
@@ -71,6 +73,7 @@ when preview and production both run with `NODE_ENV=production`.
 ```typescript title="workflow.world.ts" lineNumbers
 import { createLocalWorld } from "@workflow/world-local";
 import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
+import type { World } from "workflow/config";
 
 const appEnv = process.env.APP_ENV;
 if (
@@ -85,11 +88,13 @@ if (
 const production =
   appEnv === "production" || appEnv === "preview";
 
-const world = production
-  ? createPostgresWorld({
-      connectionString: process.env.WORKFLOW_POSTGRES_URL!,
-    })
-  : createLocalWorld();
+const world = (
+  production
+    ? createPostgresWorld({
+        connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+      })
+    : createLocalWorld()
+) satisfies World;
 
 export default world;
 ```
