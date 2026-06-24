@@ -92,7 +92,7 @@ export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
         return {
           resolve: {
             alias: {
-              '@workflow/world/provider': loadedWorkflowConfig.worldModule,
+              '@workflow/world/configured': loadedWorkflowConfig.worldModule,
             },
           },
           ssr: { noExternal: ['workflow', '@workflow/core'] },

@@ -245,7 +245,7 @@ export abstract class BaseBuilder<
 
   private get worldAlias(): Record<string, string> | undefined {
     if (!this.config.worldModule) return undefined;
-    return { '@workflow/world/provider': this.config.worldModule };
+    return { '@workflow/world/configured': this.config.worldModule };
   }
 
   protected logBaseBuilderInfo(...args: unknown[]): void {

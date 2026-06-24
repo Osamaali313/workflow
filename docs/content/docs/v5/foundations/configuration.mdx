@@ -27,26 +27,23 @@ const config = {
 export default config;
 ```
 
-`world` points to a module that default-exports a lazy provider:
+`world` points to a module that default-exports a World:
 
 ```typescript title="workflow.world.ts" lineNumbers
-import type { WorldProvider } from "workflow/config";
 import { createWorld } from "@workflow/world-postgres";
 
-const world: WorldProvider = () =>
-  createWorld({
-    connectionString: process.env.WORKFLOW_POSTGRES_URL!,
-    jobPrefix: "myapp_",
-    queueConcurrency: 50,
-    maxPoolSize: 52,
-  });
+const world = createWorld({
+  connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+  jobPrefix: "myapp_",
+  queueConcurrency: 50,
+  maxPoolSize: 52,
+});
 
 export default world;
 ```
 
-The provider is bundled with the application and runs when the runtime first
-needs the World. Keep credentials in environment variables rather than
-`workflow.config.ts`.
+The World is bundled with the application. Keep credentials in environment
+variables rather than `workflow.config.ts`.
 
 ## Precedence
 
@@ -65,28 +62,31 @@ Vercel World on Vercel and the Local World elsewhere.
 
 ### Different Worlds Per Environment
 
-Select between Worlds inside the provider. Use an application-specific variable
+Select the World in `workflow.world.ts`. Use an application-specific variable
 when preview and production both run with `NODE_ENV=production`.
 
 ```typescript title="workflow.world.ts" lineNumbers
-import type { WorldProvider } from "workflow/config";
 import { createLocalWorld } from "@workflow/world-local";
 import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
 
-const world: WorldProvider = () => {
-  switch (process.env.APP_ENV) {
-    case "production":
-    case "preview":
-      return createPostgresWorld({
-        connectionString: process.env.WORKFLOW_POSTGRES_URL!,
-      });
-    case "development":
-    case "test":
-      return createLocalWorld();
-    default:
-      throw new Error(`Unexpected APP_ENV: ${process.env.APP_ENV}`);
-  }
-};
+const appEnv = process.env.APP_ENV;
+if (
+  appEnv !== "production" &&
+  appEnv !== "preview" &&
+  appEnv !== "development" &&
+  appEnv !== "test"
+) {
+  throw new Error(`Unexpected APP_ENV: ${appEnv}`);
+}
+
+const production =
+  appEnv === "production" || appEnv === "preview";
+
+const world = production
+  ? createPostgresWorld({
+      connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+    })
+  : createLocalWorld();
 
 export default world;
 ```

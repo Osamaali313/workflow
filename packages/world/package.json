@@ -6,9 +6,9 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
-    "./provider": {
-      "types": "./dist/provider.d.ts",
-      "default": "./dist/provider.js"
+    "./configured": {
+      "types": "./dist/configured.d.ts",
+      "default": "./dist/configured.js"
     },
     "./*": "./dist/*"
   },

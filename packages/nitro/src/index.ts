@@ -88,7 +88,7 @@ const nitroModule = {
       worldModule,
     };
     if (worldModule) {
-      nitro.options.alias['@workflow/world/provider'] = worldModule;
+      nitro.options.alias['@workflow/world/configured'] = worldModule;
     }
     const isVercelDeploy =
       !nitro.options.dev && nitro.options.preset === 'vercel';

@@ -41,7 +41,7 @@ export interface BaseBuilderConfig {
 
   workflowManifestPath?: string;
 
-  /** @internal Resolved World provider module from workflow.config.ts. */
+  /** @internal Resolved World module from workflow.config.ts. */
   worldModule?: string;
 
   // Optional prefix for debug files (e.g., "_" for Astro to ignore them)

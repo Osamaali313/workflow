@@ -31,10 +31,10 @@ it('uses the configured World instead of the implicit local default', async () =
   );
   writeFileSync(
     join(project, 'workflow.world.mjs'),
-    `export default () => ({
+    `export default {
       source: 'configured',
       start() { globalThis.__workflowCliWorldStarted = true; }
-    });`
+    };`
   );
   vi.stubEnv('WORKFLOW_OBSERVABILITY_CWD', project);
   vi.stubEnv('WORKFLOW_TARGET_WORLD', '');

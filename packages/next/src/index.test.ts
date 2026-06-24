@@ -221,12 +221,12 @@ describe('withWorkflow builder config', () => {
     expect(webpackConfig?.externals).toEqual([{ react: 'commonjs react' }]);
   });
 
-  it('loads shared build config without running the World provider', async () => {
+  it('loads shared build config without running the World module', async () => {
     const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
     process.chdir(projectDir);
     writeFile(
       join(projectDir, 'workflow.world.ts'),
-      `throw new Error('World provider ran during build');`
+      `throw new Error('World module ran during build');`
     );
     writeFile(
       join(projectDir, 'workflow.config.ts'),
@@ -249,7 +249,7 @@ describe('withWorkflow builder config', () => {
     });
     expect(
       (nextConfig.turbopack?.resolveAlias as Record<string, string>)[
-        '@workflow/world/provider'
+        '@workflow/world/configured'
       ]
     ).toBe('./workflow.world.ts');
   });

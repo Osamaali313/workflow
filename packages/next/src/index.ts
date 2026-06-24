@@ -467,7 +467,7 @@ export function withWorkflow(
         ...(isPlainObject(nextConfig.turbopack.resolveAlias)
           ? nextConfig.turbopack.resolveAlias
           : {}),
-        '@workflow/world/provider': worldRequest.startsWith('.')
+        '@workflow/world/configured': worldRequest.startsWith('.')
           ? worldRequest
           : `./${worldRequest}`,
       };
@@ -591,7 +591,7 @@ export function withWorkflow(
           webpackConfig.resolve.alias = [
             ...aliases,
             {
-              name: '@workflow/world/provider',
+              name: '@workflow/world/configured',
               alias: worldModule,
               onlyModule: true,
             },
@@ -599,7 +599,7 @@ export function withWorkflow(
         } else {
           webpackConfig.resolve.alias = {
             ...(aliases || {}),
-            '@workflow/world/provider': worldModule,
+            '@workflow/world/configured': worldModule,
           };
         }
       }

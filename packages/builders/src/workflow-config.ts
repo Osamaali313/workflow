@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, win32 } from 'node:path';
-import type { WorldProvider } from '@workflow/world';
+import type { World } from '@workflow/world';
 import { findUp } from 'find-up';
 import { createJiti } from 'jiti';
 import { z } from 'zod/v4';
@@ -81,11 +81,9 @@ export async function loadWorkflowConfig({
 
 export type WorkflowConfigLoader = typeof loadWorkflowConfig;
 
-export async function loadWorldProvider(
-  worldModule: string
-): Promise<WorldProvider> {
+export async function loadWorld(worldModule: string): Promise<World> {
   const module = await createJiti(import.meta.url, {
     interopDefault: false,
-  }).import<{ default: WorldProvider }>(worldModule);
+  }).import<{ default: World }>(worldModule);
   return module.default;
 }

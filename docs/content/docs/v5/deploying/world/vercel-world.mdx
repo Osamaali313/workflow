@@ -98,21 +98,19 @@ Overrides the Vercel workflow API proxy URL.
 
 ### Programmatic configuration
 
-Point `world` in `workflow.config.ts` at a provider module:
+Point `world` in `workflow.config.ts` at a World module:
 
 ```typescript title="workflow.world.ts" lineNumbers
-import type { WorldProvider } from "workflow/config";
 import { createVercelWorld } from "@workflow/world-vercel";
 
-const world: WorldProvider = () =>
-  createVercelWorld({
-    token: process.env.WORKFLOW_VERCEL_AUTH_TOKEN,
-    projectConfig: {
-      projectId: "my-project",
-      teamId: "my-team",
-      environment: "production",
-    },
-  });
+const world = createVercelWorld({
+  token: process.env.WORKFLOW_VERCEL_AUTH_TOKEN,
+  projectConfig: {
+    projectId: "my-project",
+    teamId: "my-team",
+    environment: "production",
+  },
+});
 
 export default world;
 ```

@@ -1,4 +1,4 @@
-import { loadWorldProvider } from '@workflow/builders/workflow-config';
+import { loadWorld } from '@workflow/builders/workflow-config';
 import { getWorld, setWorld } from '@workflow/core/runtime';
 import { isVercelWorldTarget } from '@workflow/utils';
 import { createVercelWorld } from '@workflow/world-vercel';
@@ -150,8 +150,7 @@ export const setupCliWorld = async (
   }
 
   if (configured && loadedConfig.worldModule) {
-    const worldProvider = await loadWorldProvider(loadedConfig.worldModule);
-    const world = await worldProvider();
+    const world = await loadWorld(loadedConfig.worldModule);
     await world.start?.();
     setWorld(world);
     return world;

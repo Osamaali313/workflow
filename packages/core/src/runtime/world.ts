@@ -5,7 +5,7 @@ import {
   resolveWorkflowTargetWorld,
 } from '@workflow/utils';
 import type { World } from '@workflow/world';
-import configuredWorldProvider from '@workflow/world/provider';
+import configuredWorld from '@workflow/world/configured';
 import { createLocalWorld } from '@workflow/world-local';
 import { createVercelWorld } from '@workflow/world-vercel';
 
@@ -35,9 +35,9 @@ const globalSymbols: typeof globalThis & {
   [StubbedWorldCachePromise]?: Promise<World>;
 } = globalThis;
 
-function getConfiguredWorldProvider() {
+function getConfiguredWorld() {
   if (process.env.WORKFLOW_TARGET_WORLD) return;
-  return configuredWorldProvider;
+  return configuredWorld;
 }
 
 // Dynamic import for custom world modules. Uses a standard import()
@@ -83,8 +83,8 @@ function resolveModulePath(specifier: string): string {
  * use setWorld() to inject the instance.
  */
 export const createWorld = async (): Promise<World> => {
-  const provider = getConfiguredWorldProvider();
-  if (provider) return provider();
+  const configured = getConfiguredWorld();
+  if (configured) return configured;
 
   const targetWorld = resolveWorkflowTargetWorld();
 
@@ -143,12 +143,12 @@ export const createWorld = async (): Promise<World> => {
 export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
 
 /**
- * Configured providers share the runtime singleton. Environment-selected
+ * Configured Worlds share the runtime singleton. Environment-selected
  * Worlds keep the legacy handler cache so build-time access cannot cache
  * incomplete runtime configuration.
  */
 export const getWorldHandlers = async (): Promise<WorldHandlers> => {
-  if (getConfiguredWorldProvider()) return getWorld();
+  if (getConfiguredWorld()) return getWorld();
 
   if (globalSymbols[StubbedWorldCache]) {
     return globalSymbols[StubbedWorldCache];
@@ -176,7 +176,7 @@ export const getWorld = async (): Promise<World> => {
   // Store the promise immediately to prevent race conditions with concurrent calls.
   // Clear on rejection so subsequent calls can retry instead of caching the failure.
   if (!globalSymbols[WorldCachePromise]) {
-    const configured = !!getConfiguredWorldProvider();
+    const configured = !!getConfiguredWorld();
     globalSymbols[WorldCachePromise] = createWorld()
       .then(async (world) => {
         if (configured) await world.start?.();

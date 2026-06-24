@@ -11,4 +11,4 @@
 "workflow": minor
 ---
 
-Add typed configuration for shared build settings and lazy World providers.
+Add typed configuration for shared build settings and World modules.

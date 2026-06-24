@@ -22,13 +22,12 @@ Install the Postgres World package in your workflow project:
 @workflow/world-postgres
 ```
 
-Create a provider for the World:
+Create the World:
 
 ```typescript title="workflow.world.ts" lineNumbers
-import type { WorldProvider } from "workflow/config";
 import { createWorld } from "@workflow/world-postgres";
 
-const world: WorldProvider = () => createWorld();
+const world = createWorld();
 
 export default world;
 ```
@@ -146,8 +145,8 @@ export default defineConfig({
 
 </Tabs>
 
-If you construct a Postgres World outside a provider, call `start()` yourself
-during server initialization.
+If you construct a Postgres World outside Workflow configuration, call
+`start()` yourself during server initialization.
 
 <Callout type="info">
 The Postgres World requires a long-lived worker process that polls the database for jobs. This does not work on serverless environments. For Vercel deployments, use the [Vercel World](/docs/deploying/world/vercel-world) instead.
@@ -222,17 +221,17 @@ Ensure your deployment has:
 
 1. Network access to your PostgreSQL database
 2. Environment variables configured correctly
-3. The provider selected in `workflow.config.ts`
+3. The World selected in `workflow.config.ts`
 
 <Callout type="info">
 The Postgres World is not compatible with Vercel deployments. Omit `world` to
 select the [Vercel World](/docs/deploying/world/vercel-world) automatically on Vercel, or select an
-appropriate World inside your provider based on the deployment environment.
+appropriate World in `workflow.world.ts` based on the deployment environment.
 </Callout>
 
 ## Limitations
 
-- **Requires long-running process** - Configured providers start automatically; directly constructed Worlds require `start()` during server initialization
+- **Requires long-running process** - Configured Worlds start automatically; Worlds created elsewhere require `start()` during server initialization
 - **PostgreSQL infrastructure** - Requires a PostgreSQL database (self-hosted or managed)
 - **Not compatible with Vercel** - Use the [Vercel World](/docs/deploying/world/vercel-world) for Vercel deployments
 

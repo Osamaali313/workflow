@@ -56,7 +56,7 @@ export function workflowPlugin(
             ...(worldModule
               ? {
                   resolve: {
-                    alias: { '@workflow/world/provider': worldModule },
+                    alias: { '@workflow/world/configured': worldModule },
                   },
                   ssr: { noExternal: ['workflow', '@workflow/core'] },
                 }
