@@ -420,7 +420,7 @@ function addDashboardHandler(nitro: Nitro, hasConfiguredWorld: boolean) {
   if (!nitro.routing) {
     nitro.options.virtual[DASHBOARD_VIRTUAL_ID] = /* js */ `
       import { fromWebHandler } from "h3";
-      import { getWorld } from "@workflow/core/runtime";
+      import { getWorld } from "workflow/runtime";
       ${handlerSource}
       export default fromWebHandler(async () => {
         try {
@@ -434,7 +434,7 @@ function addDashboardHandler(nitro: Nitro, hasConfiguredWorld: boolean) {
     `;
   } else {
     nitro.options.virtual[DASHBOARD_VIRTUAL_ID] = /* js */ `
-      import { getWorld } from "@workflow/core/runtime";
+      import { getWorld } from "workflow/runtime";
       ${handlerSource}
       export default async () => {
         try {
@@ -478,7 +478,7 @@ function addVirtualHandler(
     if (!nitro.routing) {
       nitro.options.virtual[`#${buildPath}`] = /* js */ `
       import { fromWebHandler } from "h3";
-      import { getWorld } from "@workflow/core/runtime";
+      import { getWorld } from "workflow/runtime";
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
       const handlerPath = ${handlerImportPath};
@@ -504,7 +504,7 @@ function addVirtualHandler(
     `;
     } else {
       nitro.options.virtual[`#${buildPath}`] = /* js */ `
-      import { getWorld } from "@workflow/core/runtime";
+      import { getWorld } from "workflow/runtime";
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
       const handlerPath = ${handlerImportPath};

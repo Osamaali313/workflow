@@ -91,9 +91,7 @@ describe('@workflow/nitro virtual handlers', () => {
     await nitroModule.setup(nitro);
 
     const dashboard = nitro.options.virtual['#workflow/dashboard-handler'];
-    expect(dashboard).toContain(
-      'import { getWorld } from "@workflow/core/runtime";'
-    );
+    expect(dashboard).toContain('import { getWorld } from "workflow/runtime";');
     expect(dashboard).toContain(
       'globalThis[Symbol.for("@workflow/web//world")] = await getWorld();'
     );
@@ -109,9 +107,7 @@ describe('@workflow/nitro virtual handlers', () => {
 
     for (const buildPath of ['workflows.mjs', 'webhook.mjs']) {
       const source = nitro.options.virtual[`#workflow/${buildPath}`];
-      expect(source).toContain(
-        'import { getWorld } from "@workflow/core/runtime";'
-      );
+      expect(source).toContain('import { getWorld } from "workflow/runtime";');
       expect(source).toContain('const worldReady = getWorld();');
       expect(source).toContain('await worldReady;');
     }
