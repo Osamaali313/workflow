@@ -21,11 +21,10 @@ const WORKFLOW_ROUTES = [
 export class LocalBuilder extends BaseBuilder {
   constructor(config: Partial<AstroConfig> = {}) {
     const workingDir = config.workingDir ?? process.cwd();
-    const build = config.workflowConfig?.config.build;
 
     super({
       ...config,
-      dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
+      dirs: config.dirs ?? ['src/pages', 'src/workflows'],
       buildTarget: 'astro' as const,
       workingDir,
       debugFilePrefix: '_', // Prefix with underscore so Astro ignores debug files
@@ -91,11 +90,9 @@ export const prerender = false;`
 
     // Expose manifest as a public HTTP route when WORKFLOW_PUBLIC_MANIFEST=1
     // Astro maps `foo.json.js` to the URL `/foo.json`
-    const publicManifestPath = join(workflowGeneratedDir, 'manifest.json.js');
-    await rm(publicManifestPath, { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
       await writeFile(
-        publicManifestPath,
+        join(workflowGeneratedDir, 'manifest.json.js'),
         `export function GET() {
   return new Response(${JSON.stringify(manifestJson)}, {
     headers: { "content-type": "application/json" },
@@ -163,11 +160,10 @@ export const prerender = false;`
 export class VercelBuilder extends VercelBuildOutputAPIBuilder {
   constructor(config: Partial<AstroConfig> = {}) {
     const workingDir = config.workingDir ?? process.cwd();
-    const build = config.workflowConfig?.config.build;
     super({
       ...config,
       workingDir,
-      dirs: config.dirs ?? build?.dirs ?? ['src/pages', 'src/workflows'],
+      dirs: config.dirs ?? ['src/pages', 'src/workflows'],
       buildTarget: 'vercel-build-output-api',
       debugFilePrefix: '_',
     });

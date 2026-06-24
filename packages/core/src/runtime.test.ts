@@ -8,7 +8,6 @@ import {
   SPEC_VERSION_CURRENT,
   type WorkflowRun,
 } from '@workflow/world';
-import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerStepFunction } from './private.js';
 import { REPLAY_DIVERGENCE_MAX_RETRIES } from './runtime/constants.js';
@@ -125,57 +124,6 @@ async function runWorkflowHandlerWithEvents(
 
   return createdEvents;
 }
-
-describe('workflowEntrypoint World replacement', () => {
-  afterEach(() => {
-    setWorld(undefined);
-    setWorkflowQueueNamespace(undefined);
-  });
-
-  it('resolves the namespace when the handler binds to its World', async () => {
-    const createQueueHandler = vi.fn(() => async () => new Response());
-    setWorld({
-      specVersion: SPEC_VERSION_CURRENT,
-      createQueueHandler,
-    } as any);
-    const entrypoint = workflowEntrypoint('');
-
-    setWorkflowQueueNamespace('app');
-    await entrypoint(new Request('https://example.test'));
-
-    expect(createQueueHandler).toHaveBeenCalledWith(
-      '__app_wkf_workflow_',
-      expect.any(Function)
-    );
-  });
-
-  it('rebuilds its queue handler after the World changes', async () => {
-    const firstHandler = vi.fn(async () => new Response('first'));
-    const secondHandler = vi.fn(async () => new Response('second'));
-    const firstCreate = vi.fn(() => firstHandler);
-    const secondCreate = vi.fn(() => secondHandler);
-    const entrypoint = workflowEntrypoint('');
-
-    setWorld({
-      specVersion: SPEC_VERSION_CURRENT,
-      createQueueHandler: firstCreate,
-    } as any);
-    expect(
-      await (await entrypoint(new Request('https://example.test'))).text()
-    ).toBe('first');
-
-    setWorld(undefined);
-    setWorld({
-      specVersion: SPEC_VERSION_CURRENT,
-      createQueueHandler: secondCreate,
-    } as any);
-    expect(
-      await (await entrypoint(new Request('https://example.test'))).text()
-    ).toBe('second');
-    expect(firstCreate).toHaveBeenCalledOnce();
-    expect(secondCreate).toHaveBeenCalledOnce();
-  });
-});
 
 describe('workflowEntrypoint replay guards', () => {
   afterEach(() => {

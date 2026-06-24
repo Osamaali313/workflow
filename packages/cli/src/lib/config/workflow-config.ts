@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import {
   type LoadedWorkflowConfig,
   loadWorkflowConfig,
-} from '@workflow/config/load';
+} from '@workflow/builders/workflow-config';
 import { config as loadDotEnv } from 'dotenv';
 import type { BuildTarget, WorkflowConfig } from './types.js';
 
@@ -13,9 +13,7 @@ type CliBuildTarget = Extract<
 
 export function resolveWorkflowCwd(): string {
   const raw = process.env.WORKFLOW_OBSERVABILITY_CWD;
-  if (!raw) {
-    return process.cwd();
-  }
+  if (!raw) return process.cwd();
   // Allow relative paths; resolve relative to the current process.cwd()
   // (i.e. where the CLI was invoked).
   return resolve(process.cwd(), raw);
@@ -44,7 +42,11 @@ export const getWorkflowConfig = async (options: {
       fileConfig.build?.dirs ??
       (buildTarget === 'standalone' ? ['.'] : ['./workflows']),
     workingDir,
-    workflowConfig: loadedConfig,
+    projectRoot: fileConfig.build?.projectRoot,
+    worldModule: loadedConfig.worldModule,
+    sourcemap: process.env.WORKFLOW_SOURCEMAP
+      ? undefined
+      : fileConfig.build?.sourcemap,
     workflowManifestPath: workflowManifest,
   };
   if (buildTarget === 'standalone') {

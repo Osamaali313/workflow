@@ -7,7 +7,7 @@ import { join } from 'pathe';
 import type { Plugin } from 'vite';
 import type { LocalBuilder } from './builders.js';
 import type { ModuleOptions } from './index.js';
-import { nitroModule } from './index.js';
+import nitroModule from './index.js';
 
 export function workflow(options?: ModuleOptions): Plugin[] {
   let builder: LocalBuilder | undefined;

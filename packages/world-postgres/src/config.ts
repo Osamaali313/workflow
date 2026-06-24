@@ -8,7 +8,7 @@ export type PostgresWorldConfig = PgConnectionConfig & {
   jobPrefix?: string;
   /**
    * namespace for queue topic prefixes (e.g. 'custom' → '__custom_wkf_workflow_').
-   * Used only when no runtime queue namespace is configured.
+   * defaults to WORKFLOW_QUEUE_NAMESPACE env var if not provided.
    */
   namespace?: string;
   queueConcurrency?: number;

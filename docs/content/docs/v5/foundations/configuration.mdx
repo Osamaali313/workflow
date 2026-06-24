@@ -2,7 +2,7 @@
 title: Configuration
 description: Configure Workflow SDK with a typed workflow.config.ts file.
 type: conceptual
-summary: Configure the World, builds, queue namespace, and framework integration for your app.
+summary: Configure the World and shared build settings for your app.
 prerequisites:
   - /docs/foundations/workflows-and-steps
 related:
@@ -22,16 +22,12 @@ const config = {
     dirs: ["workflows"],
     sourcemap: false,
   },
-  queue: {
-    namespace: "myapp",
-  },
 } satisfies WorkflowConfig;
 
 export default config;
 ```
 
-The World module default-exports a lazy provider. Read runtime credentials from
-environment variables here rather than placing them in the build configuration:
+`world` points to a module that default-exports a lazy provider:
 
 ```typescript title="workflow.world.ts" lineNumbers
 import type { WorldProvider } from "workflow/config";
@@ -48,55 +44,29 @@ const world: WorldProvider = () =>
 export default world;
 ```
 
-<Callout type="info">
-  Next.js projects also wrap `next.config.ts` with `withWorkflow()`.
-</Callout>
-
-In a monorepo, place a config file in each application that needs its own
-settings.
+The provider is bundled with the application and runs when the runtime first
+needs the World. Keep credentials in environment variables rather than
+`workflow.config.ts`.
 
 ## Precedence
 
-From highest to lowest priority:
+Configuration is resolved in this order:
 
-1. Explicit CLI flags or framework options
+1. Explicit CLI or framework options
 2. Environment variables
 3. `workflow.config.ts`
 4. Built-in defaults
 
-## World
+## World Selection
 
-`world` is an optional path relative to `workflow.config.ts`, or a package
-specifier. Its module must default-export a `WorldProvider`. The module is
-included in the runtime output, but the provider runs only when the application
-first needs its World.
+`world` accepts a path relative to `workflow.config.ts` or a package specifier.
+`WORKFLOW_TARGET_WORLD` overrides it. Without either setting, Workflow uses the
+Vercel World on Vercel and the Local World elsewhere.
 
-World selection follows this order:
+### Different Worlds Per Environment
 
-| Condition | Selected World |
-| --- | --- |
-| `WORKFLOW_TARGET_WORLD` is set | The built-in target or module named by the environment variable |
-| `world` is configured | The configured provider |
-| `VERCEL_DEPLOYMENT_ID` is set | Vercel World |
-| Otherwise | Local World |
-
-You do not need a `workflow.world.ts` file when the automatic Local and Vercel
-Worlds are sufficient. A config file may also omit `world` while configuring
-build or queue settings.
-
-A missing configured module fails during build or development setup. If a
-provider throws or returns no World, runtime startup fails; Workflow does not
-silently switch to another backend.
-
-## Deployment Environments
-
-For local development and Vercel deployments, omit `world` to use the automatic
-Local and Vercel Worlds.
-
-When environments need different custom Worlds or options, select them inside
-the provider using an application environment variable set by each deployment.
-Use a dedicated variable when you need to distinguish preview from production,
-because both commonly use `NODE_ENV=production`.
+Select between Worlds inside the provider. Use an application-specific variable
+when preview and production both run with `NODE_ENV=production`.
 
 ```typescript title="workflow.world.ts" lineNumbers
 import type { WorldProvider } from "workflow/config";
@@ -114,55 +84,17 @@ const world: WorldProvider = () => {
     case "test":
       return createLocalWorld();
     default:
-      throw new Error(
-        `Unexpected APP_ENV: ${process.env.APP_ENV}`,
-      );
+      throw new Error(`Unexpected APP_ENV: ${process.env.APP_ENV}`);
   }
 };
 
 export default world;
 ```
 
-Set `WORKFLOW_POSTGRES_URL` independently in preview and production to keep
-credentials out of source control and point each deployment at the correct
-database.
-
-## Build
+## Build Options
 
 | Option | Type | Description |
 | --- | --- | --- |
 | `build.dirs` | `string[]` | Directories to scan for workflow code |
 | `build.projectRoot` | `string` | Root for tracing, module resolution, and TypeScript configuration |
-| `build.externalPackages` | `string[]` | Packages excluded from generated bundles. Direct Vercel Build Output API builds bundle all dependencies. |
 | `build.sourcemap` | `boolean \| "inline" \| "linked" \| "external" \| "both"` | Source map mode for generated bundles |
-| `build.manifest.public` | `boolean` | Expose the workflow manifest over HTTP |
-| `build.manifest.output` | `string` | Write the workflow manifest to this path |
-
-## Queue Namespace
-
-`queue.namespace` prefixes Workflow queue topics and generated deployment
-triggers. It must be lowercase alphanumeric and start with a letter.
-
-For Postgres Worlds that share a database, also give each application a unique
-`jobPrefix`. The namespace distinguishes Workflow topics; `jobPrefix`
-distinguishes the underlying Graphile Worker tasks.
-
-## Integration Settings
-
-Use `integration` only for framework-specific settings. It is a discriminated
-object, so settings for different integrations cannot be mixed. Nitro currently
-supports integration settings:
-
-```typescript title="workflow.config.ts" lineNumbers
-import type { WorkflowConfig } from "workflow/config";
-
-const config = {
-  integration: {
-    type: "nitro",
-    typescriptPlugin: true,
-    runtime: "nodejs24.x",
-  },
-} satisfies WorkflowConfig;
-
-export default config;
-```

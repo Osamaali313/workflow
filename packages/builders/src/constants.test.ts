@@ -37,7 +37,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
 
   it('inlines an explicit namespace', () => {
     expect(createWorkflowEntrypointOptionsCode({ namespace: 'custom' })).toBe(
-      ', { namespace: process.env.WORKFLOW_QUEUE_NAMESPACE ?? "custom" }'
+      ', { namespace: "custom" }'
     );
   });
 
@@ -45,7 +45,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
     process.env.WORKFLOW_QUEUE_NAMESPACE = 'custom';
 
     expect(createWorkflowEntrypointOptionsCode()).toBe(
-      ', { namespace: process.env.WORKFLOW_QUEUE_NAMESPACE ?? "custom" }'
+      ', { namespace: "custom" }'
     );
   });
 
@@ -56,7 +56,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
         routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
       })
     ).toBe(
-      ', { namespace: process.env.WORKFLOW_QUEUE_NAMESPACE ?? "custom", routeModuleBodyStartedAt: workflowRouteModuleBodyStartedAt }'
+      ', { namespace: "custom", routeModuleBodyStartedAt: workflowRouteModuleBodyStartedAt }'
     );
   });
 });

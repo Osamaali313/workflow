@@ -37,7 +37,7 @@ import { createNodeModuleErrorPlugin } from './node-module-esbuild-plugin.js';
 import { createPseudoPackagePlugin } from './pseudo-package-esbuild-plugin.js';
 import { createSwcPlugin } from './swc-esbuild-plugin.js';
 import { detectWorkflowPatterns } from './transform-utils.js';
-import type { BuilderConfig, SourcemapMode } from './types.js';
+import type { SourcemapMode, WorkflowConfig } from './types.js';
 import { extractWorkflowGraphs } from './workflows-extractor.js';
 
 const enhancedResolve = promisify(enhancedResolveOriginal);
@@ -217,7 +217,7 @@ function mergeWorkflowManifest(
  * Subclasses must implement the build() method to define builder-specific logic.
  */
 export abstract class BaseBuilder<
-  TConfig extends BuilderConfig = BuilderConfig,
+  TConfig extends WorkflowConfig = WorkflowConfig,
 > {
   protected config: TConfig;
 
@@ -234,11 +234,8 @@ export abstract class BaseBuilder<
   }
 
   protected get transformProjectRoot(): string {
-    const projectRoot =
-      this.config.projectRoot ??
-      this.config.workflowConfig?.config.build?.projectRoot;
-    return projectRoot
-      ? resolve(this.config.workingDir, projectRoot)
+    return this.config.projectRoot
+      ? resolve(this.config.workingDir, this.config.projectRoot)
       : this.config.workingDir;
   }
 
@@ -246,36 +243,9 @@ export abstract class BaseBuilder<
     return this.config.moduleSpecifierRoot || this.transformProjectRoot;
   }
 
-  protected get queueNamespace(): string | undefined {
-    return (
-      process.env.WORKFLOW_QUEUE_NAMESPACE ??
-      this.config.workflowConfig?.config.queue?.namespace
-    );
-  }
-
-  protected get externalPackages(): string[] {
-    if (this.config.buildTarget === 'vercel-build-output-api') return [];
-    return (
-      this.config.externalPackages ??
-      this.config.workflowConfig?.config.build?.externalPackages ??
-      []
-    );
-  }
-
-  private get runtimeConfigPlugins(): esbuild.Plugin[] {
-    const path = this.config.workflowConfig?.runtimePath;
-    if (!path) return [];
-    return [
-      {
-        name: 'workflow-runtime-config',
-        setup(build) {
-          build.onResolve(
-            { filter: /^@workflow\/config\/runtime-binding$/ },
-            () => ({ path })
-          );
-        },
-      },
-    ];
+  private get worldAlias(): Record<string, string> | undefined {
+    if (!this.config.worldModule) return undefined;
+    return { '@workflow/world/provider': this.config.worldModule };
   }
 
   protected logBaseBuilderInfo(...args: unknown[]): void {
@@ -440,8 +410,8 @@ export abstract class BaseBuilder<
    * workflow compiler when the package is externalized.
    */
   private async warnAboutExternalWorkflowPackages(): Promise<void> {
-    const externalPackages = this.externalPackages;
-    if (!externalPackages.length) return;
+    const externalPackages = this.config.externalPackages;
+    if (!externalPackages?.length) return;
 
     for (const pkg of externalPackages) {
       if (BaseBuilder.PSEUDO_PACKAGES.has(pkg)) continue;
@@ -1146,7 +1116,7 @@ export const __steps_registered = true;
       ],
       // Plugin should catch most things, but this lets users hard override
       // if the plugin misses anything that should be externalized
-      external: ['bun', 'bun:*', ...this.externalPackages],
+      external: ['bun', 'bun:*', ...(this.config.externalPackages || [])],
     });
 
     const stepsResult = await esbuildCtx.rebuild();
@@ -1410,11 +1380,11 @@ export const __steps_registered = true;
         `${Date.now() - bundleStartTime}ms`
       );
 
-      const workflowManifestPath =
-        this.config.workflowManifestPath ??
-        this.config.workflowConfig?.config.build?.manifest?.output;
-      if (workflowManifestPath) {
-        const resolvedPath = this.resolvePath(workflowManifestPath);
+      if (this.config.workflowManifestPath) {
+        const resolvedPath = resolve(
+          process.cwd(),
+          this.config.workflowManifestPath
+        );
         let prefix = '';
 
         if (resolvedPath.endsWith('.cjs')) {
@@ -1485,7 +1455,6 @@ export const __steps_registered = true;
 
       const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode(
         {
-          namespace: this.queueNamespace,
           routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
         }
       );
@@ -1542,11 +1511,8 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
           write: true,
           keepNames: true,
           minify: false,
-          external: [
-            '@aws-sdk/credential-provider-web-identity',
-            ...this.externalPackages,
-          ],
-          plugins: this.runtimeConfigPlugins,
+          external: ['@aws-sdk/credential-provider-web-identity'],
+          alias: this.worldAlias,
         });
 
         this.logEsbuildMessages(
@@ -1685,7 +1651,6 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
     const stepsRelativePath = `./${basename(stepsOutfile).replace(/\\/g, '/')}`;
     const escapedVMCode = workflowVMCode.replace(/[\\`$]/g, '\\$&');
     const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode({
-      namespace: this.queueNamespace,
       routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
     });
 
@@ -1734,11 +1699,8 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
         keepNames: true,
         minify: false,
         define: importMetaDefine,
-        external: [
-          '@aws-sdk/credential-provider-web-identity',
-          ...this.externalPackages,
-        ],
-        plugins: this.runtimeConfigPlugins,
+        external: ['@aws-sdk/credential-provider-web-identity'],
+        alias: this.worldAlias,
       });
       this.logEsbuildMessages(finalResult, 'combined bundle', true);
       this.logBaseBuilderInfo(
@@ -1765,7 +1727,6 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
       const escaped = interimBundleText.replace(/[\\`$]/g, '\\$&');
       const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode(
         {
-          namespace: this.queueNamespace,
           routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
         }
       );
@@ -2020,8 +1981,9 @@ export const OPTIONS = handler;`;
       ],
       sourcemap: this.resolveSourcemap(EMIT_SOURCEMAPS_FOR_DEBUGGING),
       mainFields: ['module', 'main'],
-      external: this.externalPackages,
-      plugins: this.runtimeConfigPlugins,
+      // Don't externalize anything - bundle everything including workflow packages
+      external: [],
+      alias: this.worldAlias,
     });
 
     this.logEsbuildMessages(result, 'webhook bundle creation');
@@ -2158,14 +2120,10 @@ export const OPTIONS = handler;`;
 
   /**
    * Whether the manifest should be exposed as a public HTTP route.
-   * WORKFLOW_PUBLIC_MANIFEST takes precedence over workflow.config.ts.
+   * Controlled by the `WORKFLOW_PUBLIC_MANIFEST` environment variable.
    */
   protected get shouldExposePublicManifest(): boolean {
-    if (process.env.WORKFLOW_PUBLIC_MANIFEST !== undefined) {
-      return process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
-    }
-
-    return this.config.workflowConfig?.config.build?.manifest?.public ?? false;
+    return process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
   }
 
   /**
@@ -2214,16 +2172,13 @@ export const OPTIONS = handler;`;
 
   /**
    * Resolve the effective source map mode for a given call site. Precedence:
-   * builder option > WORKFLOW_SOURCEMAP > workflow.config.ts > the call site's
-   * default. Returned value is passed directly to esbuild's `sourcemap`
-   * option.
+   * builder option > WORKFLOW_SOURCEMAP > the call site's default. Returned
+   * value is passed directly to esbuild's `sourcemap` option.
    */
   protected resolveSourcemap(defaultMode: SourcemapMode): SourcemapMode {
     if (this.config.sourcemap !== undefined) return this.config.sourcemap;
     const envMode = parseSourcemapEnv(process.env.WORKFLOW_SOURCEMAP);
     if (envMode !== undefined) return envMode;
-    const configMode = this.config.workflowConfig?.config.build?.sourcemap;
-    if (configMode !== undefined) return configMode;
     return defaultMode;
   }
 

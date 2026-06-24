@@ -1,8 +1,8 @@
-import { rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { rm } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createLocalWorld } from './index.js';
+import { createLocalWorld, type LocalWorld } from './index.js';
 import { createRun, updateRun } from './test-helpers.js';
 
 // Mock node:timers/promises so the queue's setTimeout resolves immediately
@@ -18,7 +18,6 @@ describe('re-enqueue active runs on start', () => {
   });
 
   afterEach(async () => {
-    delete process.env.WORKFLOW_QUEUE_NAMESPACE;
     await rm(dataDir, { recursive: true, force: true });
   });
 
@@ -119,29 +118,6 @@ describe('re-enqueue active runs on start', () => {
     await new Promise((r) => globalThis.setTimeout(r, 50));
     expect(receivedRunIds).toHaveLength(0);
 
-    await world2.close();
-  });
-
-  it('uses the active queue namespace', async () => {
-    const world1 = createLocalWorld({ dataDir });
-    await world1.start();
-    const run = await createRun(world1, {
-      deploymentId: 'dpl_1',
-      workflowName: 'myWorkflow',
-      input: new Uint8Array([1]),
-    });
-    await world1.close();
-
-    process.env.WORKFLOW_QUEUE_NAMESPACE = 'myapp';
-    const world2 = createLocalWorld({ dataDir });
-    const receivedRunIds: string[] = [];
-    world2.registerHandler('__myapp_wkf_workflow_', async (req) => {
-      receivedRunIds.push((await req.json()).runId);
-      return Response.json({ ok: true });
-    });
-
-    await world2.start();
-    await vi.waitFor(() => expect(receivedRunIds).toEqual([run.runId]));
     await world2.close();
   });
 

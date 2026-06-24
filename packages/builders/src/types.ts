@@ -1,7 +1,6 @@
-import type { SourcemapMode } from '@workflow/config';
-import type { LoadedWorkflowConfig } from '@workflow/config/load';
+import type { SourcemapMode } from './workflow-config.js';
 
-export type { SourcemapMode } from '@workflow/config';
+export type { SourcemapMode } from './workflow-config.js';
 
 export const validBuildTargets = [
   'standalone',
@@ -42,7 +41,8 @@ export interface BaseBuilderConfig {
 
   workflowManifestPath?: string;
 
-  workflowConfig?: LoadedWorkflowConfig;
+  /** @internal Resolved World provider module from workflow.config.ts. */
+  worldModule?: string;
 
   // Optional prefix for debug files (e.g., "_" for Astro to ignore them)
   debugFilePrefix?: string;
@@ -86,8 +86,7 @@ export interface BaseBuilderConfig {
    * them out of the function bundle.
    *
    * Can also be set via the `WORKFLOW_SOURCEMAP` environment variable;
-   * an explicit builder option wins over the env var, which wins over
-   * workflow.config.ts and the default.
+   * an explicit builder option wins over the env var and the default.
    */
   sourcemap?: SourcemapMode;
 }
@@ -140,15 +139,13 @@ export interface NestConfig extends BaseBuilderConfig {
 /**
  * Discriminated union of all builder configuration types.
  */
-export type BuilderConfig =
+export type WorkflowConfig =
   | StandaloneConfig
   | VercelBuildOutputConfig
   | NextConfig
   | NestConfig
   | SvelteKitConfig
   | AstroConfig;
-
-export type WorkflowConfig = BuilderConfig;
 
 export function isValidBuildTarget(
   target: string | undefined

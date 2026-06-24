@@ -25,37 +25,19 @@ export const ValidQueueName = z
   );
 export type ValidQueueName = z.infer<typeof ValidQueueName>;
 
-export const QueueNamespaceSchema = z
+const QueueNamespace = z
   .string()
   .regex(
     /^[a-z][a-z0-9]*$/,
     'Must be lowercase alphanumeric, starting with a letter'
   );
 
-const WorkflowQueueNamespace = Symbol.for('@workflow/queue/namespace');
-
-const queueGlobals = globalThis as typeof globalThis & {
-  [WorkflowQueueNamespace]?: string;
-};
-
 /**
- * Sets the process-local queue namespace resolved from workflow.config.ts.
- * Explicit function arguments and WORKFLOW_QUEUE_NAMESPACE take precedence.
- */
-export function setWorkflowQueueNamespace(namespace: string | undefined): void {
-  queueGlobals[WorkflowQueueNamespace] = namespace;
-}
-
-/**
- * Resolves the active queue namespace from an explicit argument, the loaded
- * WORKFLOW_QUEUE_NAMESPACE env var, or the loaded Workflow config.
+ * Resolves the active queue namespace from an explicit argument or the
+ * `WORKFLOW_QUEUE_NAMESPACE` env var.
  */
 export function resolveQueueNamespace(namespace?: string): string | undefined {
-  return (
-    namespace ??
-    process.env.WORKFLOW_QUEUE_NAMESPACE ??
-    queueGlobals[WorkflowQueueNamespace]
-  );
+  return namespace ?? process.env.WORKFLOW_QUEUE_NAMESPACE ?? undefined;
 }
 
 /**
@@ -69,7 +51,7 @@ export function getQueueTopicPrefix(
   namespace?: string
 ): QueuePrefix {
   if (namespace !== undefined) {
-    QueueNamespaceSchema.parse(namespace);
+    QueueNamespace.parse(namespace);
     return `__${namespace}_wkf_${kind}_` as QueuePrefix;
   }
   return `__wkf_${kind}_` as QueuePrefix;

@@ -1,16 +1,15 @@
 ---
 title: getWorldHandlers
-description: Resolve the active World's queue handlers.
+description: Access the World's queue handler factory and spec version.
 type: reference
-summary: Access queue handler creation through the managed runtime World.
+summary: Resolve the World members used by Workflow runtime handlers.
 prerequisites:
   - /docs/api-reference/workflow-runtime/get-world
 ---
 
-Returns `createQueueHandler` and `specVersion` from the same managed
-[World](/docs/api-reference/workflow-runtime/world) as
-[`getWorld()`](/docs/api-reference/workflow-runtime/get-world). The first call
-resolves and caches the World, starting configured providers before returning.
+Returns a restricted view of the [World](/docs/api-reference/workflow-runtime/world) exposing `createQueueHandler` and `specVersion`.
+
+Configured providers share the instance cached by [`getWorld()`](/docs/api-reference/workflow-runtime/get-world). Legacy environment-based Worlds keep a separate handler cache.
 
 ```typescript lineNumbers
 import { getWorldHandlers } from "workflow/runtime";
@@ -36,7 +35,7 @@ type WorldHandlers = Pick<World, "createQueueHandler" | "specVersion">;
 ```
 
 <Callout type="warn">
-  This is a low-level infrastructure API. Application code should use [`getWorld()`](/docs/api-reference/workflow-runtime/get-world) instead.
+  This is SDK infrastructure used by framework adapters and the workflow entrypoint. Application code should use [`getWorld()`](/docs/api-reference/workflow-runtime/get-world) instead.
 </Callout>
 
 ## Related Functions

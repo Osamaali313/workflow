@@ -25,17 +25,20 @@ const SVELTEKIT_VIRTUAL_MODULES = [
 export class SvelteKitBuilder extends BaseBuilder {
   constructor(config: Partial<SvelteKitConfig> = {}) {
     const workingDir = config.workingDir ?? process.cwd();
-    const build = config.workflowConfig?.config.build;
 
     super({
       ...config,
-      dirs: config.dirs ??
-        build?.dirs ?? ['workflows', 'src/workflows', 'routes', 'src/routes'],
+      dirs: config.dirs ?? [
+        'workflows',
+        'src/workflows',
+        'routes',
+        'src/routes',
+      ],
       buildTarget: 'sveltekit' as const,
       workingDir,
       externalPackages: [
         ...SVELTEKIT_VIRTUAL_MODULES,
-        ...(config.externalPackages ?? build?.externalPackages ?? []),
+        ...(config.externalPackages ?? []),
       ],
     });
   }
@@ -104,12 +107,11 @@ export const POST = async ({request}) => {
 
     // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
     // SvelteKit serves files from static/ at the root URL.
-    const staticManifestDir = join(
-      this.config.workingDir,
-      'static/.well-known/workflow/v1'
-    );
-    await rm(join(staticManifestDir, 'manifest.json'), { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
+      const staticManifestDir = join(
+        this.config.workingDir,
+        'static/.well-known/workflow/v1'
+      );
       await mkdir(staticManifestDir, { recursive: true });
       if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
         await writeFile(join(staticManifestDir, '.gitignore'), '*');

@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -61,9 +61,9 @@ describe('withWorkflow builder config', () => {
   const originalEnv = {
     PORT: process.env.PORT,
     VERCEL_DEPLOYMENT_ID: process.env.VERCEL_DEPLOYMENT_ID,
-    WORKFLOW_LOCAL_BASE_URL: process.env.WORKFLOW_LOCAL_BASE_URL,
     WORKFLOW_LOCAL_DATA_DIR: process.env.WORKFLOW_LOCAL_DATA_DIR,
     WORKFLOW_NEXT_PRIVATE_BUILT: process.env.WORKFLOW_NEXT_PRIVATE_BUILT,
+    WORKFLOW_SOURCEMAP: process.env.WORKFLOW_SOURCEMAP,
     WORKFLOW_TARGET_WORLD: process.env.WORKFLOW_TARGET_WORLD,
   };
 
@@ -79,9 +79,9 @@ describe('withWorkflow builder config', () => {
 
     delete process.env.PORT;
     delete process.env.VERCEL_DEPLOYMENT_ID;
-    delete process.env.WORKFLOW_LOCAL_BASE_URL;
     delete process.env.WORKFLOW_LOCAL_DATA_DIR;
     delete process.env.WORKFLOW_NEXT_PRIVATE_BUILT;
+    delete process.env.WORKFLOW_SOURCEMAP;
     delete process.env.WORKFLOW_TARGET_WORLD;
   });
 
@@ -139,64 +139,12 @@ describe('withWorkflow builder config', () => {
     );
   });
 
-  it('does not load build configuration for the production server', async () => {
-    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-start-'));
-    process.chdir(projectDir);
-    writeFile(
-      join(projectDir, 'workflow.config.ts'),
-      `export default { world: './workflow.world.ts' };`
-    );
-    writeFile(
-      join(projectDir, 'workflow.world.ts'),
-      'export default () => {};'
-    );
+  it('does not prewarm the SWC plugin cache for the production server', async () => {
+    const config = withWorkflow({});
 
-    try {
-      const config = withWorkflow({});
-      await config('phase-production-server', { defaultConfig: {} });
+    await config('phase-production-server', { defaultConfig: {} });
 
-      expect(prewarmWorkflowSwcPluginCacheMock).not.toHaveBeenCalled();
-      expect(getNextBuilderMock).not.toHaveBeenCalled();
-      expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
-      expect(process.env.WORKFLOW_LOCAL_DATA_DIR).toBe('.next/workflow-data');
-      expect(
-        existsSync(
-          join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
-        )
-      ).toBe(false);
-    } finally {
-      process.chdir(originalCwd);
-      rmSync(projectDir, { recursive: true, force: true });
-    }
-  });
-
-  it('resolves the runtime binding from Next.js detected root', async () => {
-    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-root-'));
-    process.chdir(projectDir);
-    writeFile(
-      join(projectDir, 'workflow.config.ts'),
-      `export default { world: './workflow.world.ts' };`
-    );
-    writeFile(
-      join(projectDir, 'workflow.world.ts'),
-      'export default () => {};'
-    );
-
-    try {
-      const config = withWorkflow({});
-      const resolvedConfig = await config('phase-production-build', {
-        defaultConfig: {},
-      });
-
-      expect(
-        (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
-          '@workflow/config/runtime-binding'
-        ]
-      ).toBe('./node_modules/.cache/workflow/runtime-config.mjs');
-    } finally {
-      process.chdir(originalCwd);
-      rmSync(projectDir, { recursive: true, force: true });
-    }
+    expect(prewarmWorkflowSwcPluginCacheMock).not.toHaveBeenCalled();
   });
 
   it('configures diagnostics inside the default Next.js dist dir', async () => {
@@ -273,96 +221,39 @@ describe('withWorkflow builder config', () => {
     expect(webpackConfig?.externals).toEqual([{ react: 'commonjs react' }]);
   });
 
-  it('applies workflow.config.ts to the Next builder and runtime binding', async () => {
+  it('loads shared build config without running the World provider', async () => {
     const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-config-'));
     process.chdir(projectDir);
     writeFile(
       join(projectDir, 'workflow.world.ts'),
-      `export default () => {
-  throw new Error('World provider must not run during builds');
-};`
+      `throw new Error('World provider ran during build');`
     );
     writeFile(
       join(projectDir, 'workflow.config.ts'),
       `export default {
-  world: './workflow.world.ts',
-  build: {
-    dirs: ['jobs'],
-    projectRoot: '../repo-root',
-    externalPackages: ['configured-external'],
-    sourcemap: false,
-    manifest: { public: true, output: 'custom-manifest.json' }
-  },
-  queue: { namespace: 'myapp' }
-};`
+        world: './workflow.world.ts',
+        build: { dirs: ['jobs'], projectRoot: '..', sourcemap: false }
+      };`
     );
-    process.env.PORT = '9876';
-    process.env.WORKFLOW_LOCAL_BASE_URL = 'http://localhost:9876';
-    let observedBaseUrl: string | undefined;
 
-    try {
-      const turbopackRoot = dirname(projectDir);
-      const config = withWorkflow(
-        async () => {
-          observedBaseUrl = process.env.WORKFLOW_LOCAL_BASE_URL;
-          return {
-            outputFileTracingRoot: '/explicit-root',
-            turbopack: { root: turbopackRoot },
-          };
-        },
-        { workflows: { local: { port: 4000 } } }
-      );
-      const resolvedConfig = await config('phase-production-build', {
-        defaultConfig: {},
-      });
+    const nextConfig = await withWorkflow({})('phase-production-build', {
+      defaultConfig: {},
+    });
+    const worldModule = join(projectDir, 'workflow.world.ts');
 
-      expect(process.env.PORT).toBe('4000');
-      expect(observedBaseUrl).toBe('http://localhost:4000');
-      expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
-      expect(process.env.WORKFLOW_LOCAL_DATA_DIR).toBe('.next/workflow-data');
-      expect(builderConfigs[0]).toMatchObject({
-        dirs: ['jobs'],
-        projectRoot: '/explicit-root',
-        workflowConfig: {
-          path: join(projectDir, 'workflow.config.ts'),
-          runtimePath: join(
-            projectDir,
-            'node_modules/.cache/workflow/runtime-config.mjs'
-          ),
-          config: {
-            world: './workflow.world.ts',
-            build: {
-              sourcemap: false,
-              manifest: {
-                public: true,
-                output: 'custom-manifest.json',
-              },
-            },
-            queue: { namespace: 'myapp' },
-          },
-        },
-      });
-      expect(builderConfigs[0]?.externalPackages).toContain(
-        'configured-external'
-      );
-      const runtimeConfigRequest = relative(
-        turbopackRoot,
-        join(projectDir, 'node_modules/.cache/workflow/runtime-config.mjs')
-      ).replaceAll('\\', '/');
-      expect(
-        (resolvedConfig.turbopack?.resolveAlias as Record<string, string>)[
-          '@workflow/config/runtime-binding'
-        ]
-      ).toBe(
-        runtimeConfigRequest.startsWith('.')
-          ? runtimeConfigRequest
-          : `./${runtimeConfigRequest}`
-      );
-    } finally {
-      process.chdir(originalCwd);
-      rmSync(projectDir, { recursive: true, force: true });
-    }
+    expect(builderConfigs[0]).toMatchObject({
+      dirs: ['jobs'],
+      projectRoot: '..',
+      sourcemap: false,
+      worldModule,
+    });
+    expect(
+      (nextConfig.turbopack?.resolveAlias as Record<string, string>)[
+        '@workflow/world/provider'
+      ]
+    ).toBe('./workflow.world.ts');
   });
+
   it('removes workflow packages from serverExternalPackages for this build', async () => {
     const projectDir = mkdtempSync(
       join(realTmpDir, 'workflow-next-server-external-')

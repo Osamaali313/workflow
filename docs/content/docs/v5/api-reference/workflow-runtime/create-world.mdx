@@ -1,8 +1,8 @@
 ---
 title: createWorld
-description: Resolve a new World instance from the active Workflow configuration.
+description: Create a new World instance from the active Workflow configuration.
 type: reference
-summary: Resolve a fresh World without using the managed runtime cache.
+summary: Resolve a fresh World without using the runtime cache.
 prerequisites:
   - /docs/api-reference/workflow-runtime/get-world
 related:
@@ -10,9 +10,8 @@ related:
 ---
 
 Creates a new [World](/docs/api-reference/workflow-runtime/world) using the
-same selection order as [`getWorld()`](/docs/api-reference/workflow-runtime/get-world):
-`WORKFLOW_TARGET_WORLD`, the provider in `workflow.config.ts`, then the
-automatic Vercel or Local World.
+[configured World selection order](/docs/foundations/configuration#world-selection).
+`WORKFLOW_TARGET_WORLD` takes precedence over `workflow.config.ts`.
 
 Unlike [`getWorld()`](/docs/api-reference/workflow-runtime/get-world), which caches a singleton instance, `createWorld()` constructs a fresh instance on every call. Application code should almost always use `getWorld()` — `createWorld()` is for infrastructure code that manages World lifecycles itself.
 

@@ -1,4 +1,7 @@
+import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
 import fs from 'fs-extra';
+
+const WORKFLOW_QUEUE_TOPICS = new Set([WORKFLOW_QUEUE_TRIGGER.topic]);
 
 function isWorkflowQueueTrigger(trigger: unknown) {
   if (typeof trigger !== 'object' || trigger === null) {
@@ -6,10 +9,7 @@ function isWorkflowQueueTrigger(trigger: unknown) {
   }
 
   const topic = (trigger as { topic?: unknown }).topic;
-  return (
-    typeof topic === 'string' &&
-    /^__(?:[a-z][a-z0-9]*_)?wkf_workflow_\*$/.test(topic)
-  );
+  return typeof topic === 'string' && WORKFLOW_QUEUE_TOPICS.has(topic);
 }
 
 export function stripWorkflowQueueTriggersFromConfig<

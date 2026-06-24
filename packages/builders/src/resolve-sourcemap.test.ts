@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BaseBuilder } from './base-builder.js';
-import type { NextConfig, SourcemapMode } from './types.js';
+import type { SourcemapMode, StandaloneConfig } from './types.js';
 
 /**
  * Minimal subclass that exposes the protected `resolveSourcemap()` and
@@ -30,22 +30,17 @@ class TestBuilder extends BaseBuilder {
 
 function createBuilder(
   sourcemap?: SourcemapMode,
-  options: { watch?: boolean; workflowSourcemap?: SourcemapMode } = {}
+  watch?: boolean
 ): TestBuilder {
-  const config: NextConfig = {
-    buildTarget: 'next',
+  const config: StandaloneConfig = {
+    buildTarget: 'standalone',
     workingDir: '/tmp/workflow-test',
     dirs: ['.'],
+    stepsBundlePath: '',
+    workflowsBundlePath: '',
+    webhookBundlePath: '',
     sourcemap,
-    watch: options.watch,
-    workflowConfig:
-      options.workflowSourcemap === undefined
-        ? undefined
-        : {
-            path: '/tmp/workflow.config.ts',
-            runtimePath: '/tmp/runtime-config.mjs',
-            config: { build: { sourcemap: options.workflowSourcemap } },
-          },
+    watch,
   };
   return new TestBuilder(config);
 }
@@ -87,15 +82,6 @@ describe('resolveSourcemap', () => {
     expect(createBuilder('external').callResolveSourcemap('inline')).toBe(
       'external'
     );
-  });
-
-  it('prefers environment variable over workflow.config.ts', () => {
-    process.env.WORKFLOW_SOURCEMAP = 'inline';
-    expect(
-      createBuilder(undefined, {
-        workflowSourcemap: false,
-      }).callResolveSourcemap(true)
-    ).toBe('inline');
   });
 
   it('uses environment variable when config is not set', () => {
@@ -166,7 +152,7 @@ describe('defaultSourcemapMode / isDevelopmentBuild', () => {
   it('defaults to inline when config.watch is true', () => {
     // Even with a production NODE_ENV, an active watch/dev server opts in.
     process.env.NODE_ENV = 'production';
-    const builder = createBuilder(undefined, { watch: true });
+    const builder = createBuilder(undefined, true);
     expect(builder.publicIsDevelopmentBuild).toBe(true);
     expect(builder.publicDefaultSourcemapMode).toBe('inline');
   });
@@ -208,9 +194,7 @@ describe('sourcemapsEnabled', () => {
   });
 
   it('is true by default in development (watch)', () => {
-    expect(
-      createBuilder(undefined, { watch: true }).publicSourcemapsEnabled
-    ).toBe(true);
+    expect(createBuilder(undefined, true).publicSourcemapsEnabled).toBe(true);
   });
 
   it('is true by default in development (NODE_ENV)', () => {

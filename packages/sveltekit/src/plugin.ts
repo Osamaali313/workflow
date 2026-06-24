@@ -1,15 +1,14 @@
 import { createBuildQueue } from '@workflow/builders';
-import type { SourcemapMode } from '@workflow/config';
-import { loadWorkflowConfig } from '@workflow/config/load';
+import {
+  loadWorkflowConfig,
+  type SourcemapMode,
+} from '@workflow/builders/workflow-config';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import { workflowHotUpdatePlugin } from '@workflow/vite';
 import type { Plugin } from 'vite';
 import { SvelteKitBuilder } from './builder.js';
 
-export const loadedWorkflowConfig = await loadWorkflowConfig({
-  cwd: process.cwd(),
-  integration: 'sveltekit',
-});
+const loadedWorkflowConfig = await loadWorkflowConfig({ cwd: process.cwd() });
 
 export interface WorkflowPluginOptions {
   /**
@@ -22,9 +21,14 @@ export interface WorkflowPluginOptions {
 }
 
 export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
+  const build = loadedWorkflowConfig.config.build;
   const builder = new SvelteKitBuilder({
-    sourcemap: options.sourcemap,
-    workflowConfig: loadedWorkflowConfig,
+    dirs: build?.dirs,
+    projectRoot: build?.projectRoot,
+    worldModule: loadedWorkflowConfig.worldModule,
+    sourcemap:
+      options.sourcemap ??
+      (process.env.WORKFLOW_SOURCEMAP ? undefined : build?.sourcemap),
   });
   const enqueue = createBuildQueue();
   const initialBuild = builder.build();
@@ -84,15 +88,15 @@ export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
       enforce: 'pre',
       async config() {
         await initialBuild;
-        if (!loadedWorkflowConfig.runtimePath) return;
+        if (!loadedWorkflowConfig.worldModule) return;
         return {
+          resolve: {
+            alias: {
+              '@workflow/world/provider': loadedWorkflowConfig.worldModule,
+            },
+          },
           ssr: { noExternal: ['workflow', '@workflow/core'] },
         };
-      },
-      resolveId(source) {
-        if (source === '@workflow/config/runtime-binding') {
-          return loadedWorkflowConfig.runtimePath;
-        }
       },
     },
     workflowHotUpdatePlugin({

@@ -1,7 +1,7 @@
-import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { BaseBuilder } from './base-builder.js';
-import { createWorkflowQueueTrigger } from './constants.js';
+import { WORKFLOW_QUEUE_TRIGGER } from './constants.js';
 
 export class VercelBuildOutputAPIBuilder extends BaseBuilder {
   async build(): Promise<void> {
@@ -38,9 +38,7 @@ export class VercelBuildOutputAPIBuilder extends BaseBuilder {
       // serves no purpose without maps.
       shouldAddSourcemapSupport: this.sourcemapsEnabled,
       maxDuration: 'max',
-      experimentalTriggers: [
-        createWorkflowQueueTrigger({ namespace: this.queueNamespace }),
-      ],
+      experimentalTriggers: [WORKFLOW_QUEUE_TRIGGER],
       runtime: this.config.runtime,
     });
 
@@ -60,9 +58,11 @@ export class VercelBuildOutputAPIBuilder extends BaseBuilder {
 
     // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
     // Vercel Build Output API serves static files from .vercel/output/static/
-    const staticManifestDir = join(outputDir, 'static/.well-known/workflow/v1');
-    await rm(join(staticManifestDir, 'manifest.json'), { force: true });
     if (this.shouldExposePublicManifest && manifestJson) {
+      const staticManifestDir = join(
+        outputDir,
+        'static/.well-known/workflow/v1'
+      );
       await mkdir(staticManifestDir, { recursive: true });
       if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
         await writeFile(join(staticManifestDir, '.gitignore'), '*');

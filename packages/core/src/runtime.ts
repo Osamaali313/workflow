@@ -49,7 +49,11 @@ import {
 import { executeStep } from './runtime/step-executor.js';
 import { handleSuspension } from './runtime/suspension-handler.js';
 import { getWaitContinuationDispatch } from './runtime/wait-continuation.js';
-import { getWorld, type WorldHandlers } from './runtime/world.js';
+import {
+  getWorld,
+  getWorldHandlers,
+  type WorldHandlers,
+} from './runtime/world.js';
 import { dehydrateRunError } from './serialization.js';
 import { remapErrorStack } from './source-map.js';
 import {
@@ -114,12 +118,10 @@ export {
 // prevents Turbopack from tracing step-handler.js → get-port.js
 // filesystem operations into the flow route bundle.
 export {
-  closeWorld,
   createWorld,
   getWorld,
   getWorldHandlers,
   setWorld,
-  usesConfiguredWorld,
 } from './runtime/world.js';
 
 function getWorkflowSetupErrorCode(err: unknown): RunErrorCode | null {
@@ -290,10 +292,11 @@ export function workflowEntrypoint(
   const NO_INLINE_REPLAY_AFTER_MS =
     Number(process.env.WORKFLOW_V2_TIMEOUT_MS) || 120_000;
 
-  const handler = (worldHandlers: WorldHandlers) => {
-    const namespace = resolveQueueNamespace(options?.namespace);
-    const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
-    return worldHandlers.createQueueHandler(
+  const namespace = resolveQueueNamespace(options?.namespace);
+  const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
+
+  const handler = (worldHandlers: WorldHandlers) =>
+    worldHandlers.createQueueHandler(
       workflowPrefix,
       async (message_, metadata) => {
         // Check if this is a health check message
@@ -947,6 +950,7 @@ export function workflowEntrypoint(
                   const encryptionKey = await getEncryptionKey();
 
                   // Main replay loop
+                  // biome-ignore lint/correctness/noConstantCondition: intentional loop
                   while (true) {
                     loopIteration++;
 
@@ -2018,10 +2022,8 @@ export function workflowEntrypoint(
         }); // End withTraceContext
       }
     );
-  };
 
   let cachedHandler: ((req: Request) => Promise<Response>) | undefined;
-  let cachedWorld: World | undefined;
   let invocationCount = 0;
   const entrypointCreatedAt = Date.now();
   const routeModuleBodyInitMs =
@@ -2031,8 +2033,7 @@ export function workflowEntrypoint(
 
   return withHealthCheck(async (req) => {
     invocationCount += 1;
-    const world = await getWorld();
-    const handlerCached = cachedHandler !== undefined && cachedWorld === world;
+    const handlerCached = cachedHandler !== undefined;
     const spanKind = await getSpanKind('SERVER');
 
     return trace(
@@ -2054,15 +2055,14 @@ export function workflowEntrypoint(
         },
       },
       async (span) => {
-        if (!cachedHandler || cachedWorld !== world) {
+        if (!cachedHandler) {
           cachedHandler = await trace('workflow.route.init', async () => {
             const worldHandlers = await trace(
               'workflow.route.get_world_handlers',
-              async () => world
+              async () => getWorldHandlers()
             );
             return handler(worldHandlers);
           });
-          cachedWorld = world;
         }
 
         const response = await cachedHandler(req);

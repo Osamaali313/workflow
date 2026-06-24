@@ -8,7 +8,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import * as workflowRunHelpers from '@workflow/core/runtime';
-import { getWorld } from '@workflow/core/runtime';
+import { createWorld } from '@workflow/core/runtime';
 import {
   type HealthCheckEndpoint,
   type HealthCheckResult,
@@ -16,7 +16,7 @@ import {
 } from '@workflow/core/runtime/helpers';
 import { resumeHook as resumeHookRuntime } from '@workflow/core/runtime/resume-hook';
 
-import { WorkflowRunNotFoundError, WorkflowWorldError } from '@workflow/errors';
+import { WorkflowWorldError, WorkflowRunNotFoundError } from '@workflow/errors';
 import { findWorkflowDataDir } from '@workflow/utils/check-data-dir';
 import type {
   Event,
@@ -26,7 +26,7 @@ import type {
   WorkflowRunStatus,
   World,
 } from '@workflow/world';
-import { createVercelWorld } from '@workflow/world-vercel';
+import { type APIConfig, createVercelWorld } from '@workflow/world-vercel';
 
 /**
  * Environment variable map for world configuration.
@@ -100,9 +100,6 @@ function getEffectiveBackendId(): string {
   const targetWorld = process.env.WORKFLOW_TARGET_WORLD;
   if (targetWorld) {
     return targetWorld;
-  }
-  if (workflowRunHelpers.usesConfiguredWorld()) {
-    return 'configured';
   }
   // Match @workflow/core/runtime defaulting: vercel if VERCEL_DEPLOYMENT_ID is set, else local.
   return process.env.VERCEL_DEPLOYMENT_ID ? 'vercel' : 'local';
@@ -389,12 +386,22 @@ export type ServerActionResult<T> =
   | { success: false; error: ServerActionError };
 
 /**
+ * Cache for World instances.
+ *
+ * IMPORTANT:
+ * - We only cache non-vercel worlds.
+ * - Cache keys are derived from **server-side** WORKFLOW_* env vars only.
+ */
+const worldCache = new Map<string, World>();
+
+/**
  * Get or create a World instance based on configuration.
  *
  * The @workflow/web UI should always pass `{}` for envMap.
  */
 async function getWorldFromEnv(userEnvMap: EnvMap): Promise<World> {
   const backendId = getEffectiveBackendId();
+  if (backendId === 'configured') return workflowRunHelpers.getWorld();
   const isVercelWorld = ['vercel', '@workflow/world-vercel'].includes(
     backendId
   );
@@ -431,7 +438,21 @@ async function getWorldFromEnv(userEnvMap: EnvMap): Promise<World> {
     await ensureLocalWorldDataDirEnv();
   }
 
-  return getWorld();
+  // Cache key derived ONLY from WORKFLOW_* env vars.
+  const workflowEnvEntries = Object.entries(process.env).filter(([key]) =>
+    key.startsWith('WORKFLOW_')
+  );
+  workflowEnvEntries.sort(([a], [b]) => a.localeCompare(b));
+  const cacheKey = JSON.stringify(Object.fromEntries(workflowEnvEntries));
+
+  const cachedWorld = worldCache.get(cacheKey);
+  if (cachedWorld) {
+    return cachedWorld;
+  }
+
+  const world = await createWorld();
+  worldCache.set(cacheKey, world);
+  return world;
 }
 
 /**

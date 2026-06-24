@@ -1,5 +1,4 @@
-import { createRuntimeWorkflowConfig } from '@workflow/config/load';
-import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
+import { loadWorldProvider } from '@workflow/builders/workflow-config';
 import { getWorld, setWorld } from '@workflow/core/runtime';
 import { isVercelWorldTarget } from '@workflow/utils';
 import { createVercelWorld } from '@workflow/world-vercel';
@@ -34,13 +33,16 @@ export const setupCliWorld = async (
   setVerboseMode(Boolean(flags.verbose));
 
   const loadedConfig = await loadProjectWorkflowConfig();
-  setRuntimeWorkflowConfig(createRuntimeWorkflowConfig(loadedConfig));
+  const configured =
+    !flags.backend &&
+    !process.env.WORKFLOW_TARGET_WORLD &&
+    !!loadedConfig.worldModule;
 
   const backend =
     flags.backend ??
     process.env.WORKFLOW_TARGET_WORLD ??
-    (loadedConfig.config.world
-      ? undefined
+    (configured
+      ? 'configured'
       : process.env.VERCEL_DEPLOYMENT_ID
         ? 'vercel'
         : 'local');
@@ -90,8 +92,8 @@ export const setupCliWorld = async (
   );
   writeEnvVars({
     DEBUG: flags.verbose ? '1' : '',
+    WORKFLOW_TARGET_WORLD: backend,
   });
-  if (backend) writeEnvVars({ WORKFLOW_TARGET_WORLD: backend });
 
   let vercelEnvVars: VercelEnvVars | undefined;
   if (backend && isVercelWorldTarget(backend)) {
@@ -143,6 +145,14 @@ export const setupCliWorld = async (
         teamId: vercelEnvVars.teamId,
       },
     });
+    setWorld(world);
+    return world;
+  }
+
+  if (configured && loadedConfig.worldModule) {
+    const worldProvider = await loadWorldProvider(loadedConfig.worldModule);
+    const world = await worldProvider();
+    await world.start?.();
     setWorld(world);
     return world;
   }

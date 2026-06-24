@@ -9,6 +9,9 @@ prerequisites:
 
 Retrieves the World instance for direct access to workflow storage, queuing, and streaming backends. This async function returns a `Promise<World>` which provides low-level access to manage workflow runs, steps, events, and hooks.
 
+The first call resolves and caches the selected World. Worlds loaded through a
+provider in `workflow.config.ts` are also started before they are returned.
+
 Use this function when you need direct access to the underlying workflow infrastructure, such as listing all runs, querying events, or implementing custom workflow management logic.
 
 ```typescript lineNumbers

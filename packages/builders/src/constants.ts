@@ -49,7 +49,8 @@ export function createWorkflowQueueTrigger(options?: { namespace?: string }) {
 
 /**
  * Creates the optional second argument for generated `workflowEntrypoint()`
- * calls. Runtime environment variables override the build-time fallback.
+ * calls. The namespace is resolved while building so generated route files do
+ * not need `WORKFLOW_QUEUE_NAMESPACE` at runtime.
  */
 export function createWorkflowEntrypointOptionsCode(options?: {
   namespace?: string;
@@ -62,9 +63,7 @@ export function createWorkflowEntrypointOptionsCode(options?: {
   if (namespace) {
     // Reuse prefix construction for namespace validation.
     getQueueTopicPrefix('workflow', namespace);
-    fields.push(
-      `namespace: process.env.WORKFLOW_QUEUE_NAMESPACE ?? ${JSON.stringify(namespace)}`
-    );
+    fields.push(`namespace: ${JSON.stringify(namespace)}`);
   }
 
   if (options?.routeModuleBodyStartedAt) {

@@ -1,11 +1,9 @@
-import assert from 'node:assert/strict';
 import {
   EntityConflictError,
   FatalError,
   ThrottleError,
   WorkflowWorldError,
 } from '@workflow/errors';
-import { setWorkflowQueueNamespace } from '@workflow/world/queue.js';
 import {
   afterEach,
   beforeAll,
@@ -19,7 +17,6 @@ import {
 // Use vi.hoisted so these are available in mock factories
 const {
   capturedHandlerRef,
-  capturedPrefixRef,
   mockEventsCreate,
   mockQueue,
   mockRuntimeLogger,
@@ -34,7 +31,6 @@ const {
     capturedHandlerRef: {
       current: null as null | ((...args: unknown[]) => Promise<unknown>),
     },
-    capturedPrefixRef: { current: '' },
     mockEventsCreate: vi.fn(),
     mockQueue: vi.fn().mockResolvedValue({ messageId: 'msg_test' }),
     mockRuntimeLogger: (() => {
@@ -72,19 +68,21 @@ vi.mock('@vercel/functions', () => ({
 // Mock the world module - createQueueHandler captures the handler
 vi.mock('./world.js', () => ({
   getWorld: vi.fn(async () => ({
-    createQueueHandler: vi.fn(
-      (
-        prefix: string,
-        handler: (...args: unknown[]) => Promise<unknown>
-      ): ((req: Request) => Promise<Response>) => {
-        capturedPrefixRef.current = prefix;
-        capturedHandlerRef.current = handler;
-        return vi.fn() as unknown as (req: Request) => Promise<Response>;
-      }
-    ),
     events: { create: mockEventsCreate },
     queue: mockQueue,
     getEncryptionKeyForRun: vi.fn().mockResolvedValue(undefined),
+  })),
+  getWorldHandlers: vi.fn(async () => ({
+    createQueueHandler: vi.fn(
+      (
+        _prefix: string,
+        handler: (...args: unknown[]) => Promise<unknown>
+      ): ((req: Request) => Promise<Response>) => {
+        capturedHandlerRef.current = handler;
+        // Return a mock request handler
+        return vi.fn() as unknown as (req: Request) => Promise<Response>;
+      }
+    ),
   })),
 }));
 
@@ -194,7 +192,8 @@ import {
 import { MAX_QUEUE_DELIVERIES } from './constants.js';
 import { executeStep } from './step-executor.js';
 // Import the module AFTER all mocks are set up
-// Call stepEntrypoint to trigger createQueueHandler and populate capturedHandlerRef.
+// Since getWorldHandlers is now async, we need to call stepEntrypoint
+// to trigger createQueueHandler and populate capturedHandlerRef
 import { stepEntrypoint } from './step-handler.js';
 import { getWorld } from './world.js';
 
@@ -234,20 +233,9 @@ function createMessage(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('step-handler namespace', () => {
-  afterEach(() => setWorkflowQueueNamespace(undefined));
-
-  it('resolves the namespace when the handler binds to its World', async () => {
-    setWorkflowQueueNamespace('app');
-    await stepEntrypoint(new Request('http://localhost'));
-
-    expect(capturedPrefixRef.current).toBe('__app_wkf_step_');
-  });
-});
-
 describe('step-handler 409 handling', () => {
   // Trigger the lazy handler initialization by calling stepEntrypoint once.
-  // This gets the World and captures the queue handler.
+  // This invokes getWorldHandlers() which calls createQueueHandler and captures the handler.
   beforeAll(async () => {
     await stepEntrypoint(new Request('http://localhost'));
   });
@@ -295,6 +283,7 @@ describe('step-handler 409 handling', () => {
   describe('step_completed 409', () => {
     it('should warn and return when step_completed gets a 409', async () => {
       // step_started succeeds, step function succeeds, step_completed returns 409
+      let callCount = 0;
       mockEventsCreate.mockImplementation(
         (_runId: string, event: { eventType: string }) => {
           if (event.eventType === 'step_started') {
@@ -310,6 +299,7 @@ describe('step-handler 409 handling', () => {
             });
           }
           if (event.eventType === 'step_completed') {
+            callCount++;
             return Promise.reject(
               new EntityConflictError(
                 'Cannot complete step because it is already completed'
@@ -546,8 +536,8 @@ describe('step-handler 409 handling', () => {
         ([, event]: [string, { eventType: string }]) =>
           event.eventType === 'step_started'
       );
-      assert(startedCall);
-      expect(startedCall[2]).toEqual(
+      expect(startedCall).toBeDefined();
+      expect(startedCall![2]).toEqual(
         expect.objectContaining({ requestId: 'iad1::req-abc' })
       );
     });
@@ -562,8 +552,8 @@ describe('step-handler 409 handling', () => {
         ([, event]: [string, { eventType: string }]) =>
           event.eventType === 'step_completed'
       );
-      assert(completedCall);
-      expect(completedCall[2]).toEqual(
+      expect(completedCall).toBeDefined();
+      expect(completedCall![2]).toEqual(
         expect.objectContaining({ requestId: 'iad1::req-abc' })
       );
     });
@@ -575,8 +565,8 @@ describe('step-handler 409 handling', () => {
         ([, event]: [string, { eventType: string }]) =>
           event.eventType === 'step_started'
       );
-      assert(startedCall);
-      expect(startedCall[2]).toEqual(
+      expect(startedCall).toBeDefined();
+      expect(startedCall![2]).toEqual(
         expect.objectContaining({ requestId: undefined })
       );
     });
@@ -657,7 +647,7 @@ describe('step-handler max deliveries', () => {
   });
 
   it('should not trigger max deliveries check when under limit', async () => {
-    await capturedHandler(createMessage(), {
+    const result = await capturedHandler(createMessage(), {
       ...createMetadata('myStep'),
       attempt: MAX_QUEUE_DELIVERIES,
     });
@@ -1223,7 +1213,7 @@ describe('executeStep optimistic inline start', () => {
   it('sends step_started carrying the input and completes (when enabled)', async () => {
     mockEventsCreate
       .mockReset()
-      .mockImplementation((_runId: string, _event: { eventType: string }) =>
+      .mockImplementation((_runId: string, event: { eventType: string }) =>
         Promise.resolve({ event: {} })
       );
 

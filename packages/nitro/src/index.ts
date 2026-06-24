@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createWorkflowQueueTrigger } from '@workflow/builders';
-import { loadWorkflowConfig } from '@workflow/config/load';
+import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
+import { loadWorkflowConfig } from '@workflow/builders/workflow-config';
 import { workflowTransformPlugin } from '@workflow/rollup';
 import type { Nitro, RollupConfig } from 'nitro/types';
 import { join } from 'pathe';
@@ -10,8 +10,6 @@ import { LocalBuilder, VercelBuilder } from './builders.js';
 import type { ModuleOptions } from './types';
 
 export type { ModuleOptions };
-
-const RUNTIME_CONFIG_PLUGIN_ID = '#workflow/runtime-config';
 
 /**
  * Detect whether the Nitro instance is v2.
@@ -69,44 +67,28 @@ function addNodeRequireBanner(config: RollupConfig): void {
   }
 }
 
-export const nitroModule = {
+const nitroModule = {
   name: 'workflow/nitro',
   async setup(nitro: Nitro): Promise<LocalBuilder | undefined> {
-    const loadedWorkflowConfig = await loadWorkflowConfig({
+    const { config: workflowConfig, worldModule } = await loadWorkflowConfig({
       cwd: nitro.options.rootDir,
-      integration: 'nitro',
     });
-    const workflowConfig = loadedWorkflowConfig.config;
-    const runtimeConfigPath = loadedWorkflowConfig.runtimePath;
-    if (workflowConfig.world) {
-      nitro.options.inlineDynamicImports = false;
-    }
-    const nitroIntegration =
-      workflowConfig.integration?.type === 'nitro'
-        ? workflowConfig.integration
-        : undefined;
     nitro.options.workflow = {
       ...nitro.options.workflow,
       dirs: nitro.options.workflow?.dirs ?? workflowConfig.build?.dirs,
-      typescriptPlugin:
-        nitro.options.workflow?.typescriptPlugin ??
-        nitroIntegration?.typescriptPlugin,
-      runtime: nitro.options.workflow?.runtime ?? nitroIntegration?.runtime,
+      sourcemap:
+        nitro.options.workflow?.sourcemap ??
+        (process.env.WORKFLOW_SOURCEMAP
+          ? undefined
+          : workflowConfig.build?.sourcemap),
     };
-    const publicManifest =
-      process.env.WORKFLOW_PUBLIC_MANIFEST === undefined
-        ? (workflowConfig.build?.manifest?.public ?? false)
-        : process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
-    const workflowQueueTrigger = createWorkflowQueueTrigger({
-      namespace:
-        process.env.WORKFLOW_QUEUE_NAMESPACE ?? workflowConfig.queue?.namespace,
-    });
-    if (runtimeConfigPath) {
-      nitro.options.virtual[RUNTIME_CONFIG_PLUGIN_ID] = `
-        import "@workflow/config/runtime-binding";
-        export default () => {};
-      `;
-      nitro.options.plugins.unshift(RUNTIME_CONFIG_PLUGIN_ID);
+    const publicManifest = process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
+    const builderConfig = {
+      projectRoot: workflowConfig.build?.projectRoot,
+      worldModule,
+    };
+    if (worldModule) {
+      nitro.options.alias['@workflow/world/provider'] = worldModule;
     }
     const isVercelDeploy =
       !nitro.options.dev && nitro.options.preset === 'vercel';
@@ -117,21 +99,7 @@ export const nitroModule = {
     // Add transform plugin at the BEGINNING to run before other transforms
     // (especially before class property transforms that rename classes like _ClassName)
     nitro.hooks.hook('rollup:before', (_nitro: Nitro, config: RollupConfig) => {
-      const plugins: unknown[] = [];
-      if (runtimeConfigPath) {
-        plugins.push({
-          name: 'workflow:runtime-config',
-          resolveId: {
-            order: 'pre',
-            handler(source: string) {
-              return source === '@workflow/config/runtime-binding'
-                ? { id: runtimeConfigPath, external: false }
-                : null;
-            },
-          },
-        });
-      }
-      plugins.push(
+      (config.plugins as Array<unknown>).unshift(
         workflowTransformPlugin({
           // Exclude pre-built workflow bundles from re-transformation
           // These are already processed and re-processing causes issues like
@@ -139,8 +107,6 @@ export const nitroModule = {
           exclude: [workflowBuildDir],
         })
       );
-      (config.plugins as Array<unknown>).unshift(...plugins);
-
       // Nitro bundles undici (via the world adapter) into the ESM server
       // output. undici loads most node: builtins as ESM imports, but pulls in
       // `node:http2` lazily via a bare `require('node:http2')` inside a
@@ -270,7 +236,7 @@ export const nitroModule = {
 
     if (useLegacyVercelBuild) {
       nitro.hooks.hook('compiled', async () => {
-        await new VercelBuilder(nitro, loadedWorkflowConfig).build();
+        await new VercelBuilder(nitro, builderConfig).build();
       });
     }
 
@@ -281,7 +247,7 @@ export const nitroModule = {
     // vercel preset. This lets workflow handlers use nitro features
     // (storage, database, runtime config, virtual imports, etc.).
     if (!useLegacyVercelBuild) {
-      const localBuilder = new LocalBuilder(nitro, loadedWorkflowConfig);
+      const localBuilder = new LocalBuilder(nitro, builderConfig);
       let isInitialBuild = true;
 
       nitro.hooks.hook('build:before', async () => {
@@ -360,7 +326,7 @@ export const nitroModule = {
           // V2 combined: a single trigger covers both `__wkf_workflow_*`
           // (workflow orchestration) and `__wkf_step_*` (step execution),
           // since the same handler dispatches both.
-          experimentalTriggers: [workflowQueueTrigger],
+          experimentalTriggers: [WORKFLOW_QUEUE_TRIGGER],
         };
 
         if (runtime) {

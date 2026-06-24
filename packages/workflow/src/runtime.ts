@@ -1,5 +1,4 @@
 export {
-  closeWorld,
   createWorld,
   getWorld,
   getWorldHandlers,

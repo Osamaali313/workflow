@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access, copyFile, mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, stat, writeFile } from 'node:fs/promises';
 import { extname, join, relative, resolve } from 'node:path';
 import type {
   NextConfig as BuilderNextConfig,
@@ -20,7 +20,7 @@ export async function getNextBuilderEager() {
 
   const {
     BaseBuilder: BaseBuilderClass,
-    createWorkflowQueueTrigger,
+    WORKFLOW_QUEUE_TRIGGER,
     // biome-ignore lint/security/noGlobalEval: Need to use eval here to avoid TypeScript from transpiling the import statement into `require()`
   } = (await eval(
     'import("@workflow/builders")'
@@ -70,12 +70,11 @@ export async function getNextBuilderEager() {
         });
 
         // Expose manifest as a static file when WORKFLOW_PUBLIC_MANIFEST=1.
-        const publicManifestDir = join(
-          this.config.workingDir,
-          'public/.well-known/workflow/v1'
-        );
-        await rm(join(publicManifestDir, 'manifest.json'), { force: true });
         if (this.shouldExposePublicManifest && manifestJson) {
+          const publicManifestDir = join(
+            this.config.workingDir,
+            'public/.well-known/workflow/v1'
+          );
           await mkdir(publicManifestDir, { recursive: true });
           if (process.env.VERCEL_DEPLOYMENT_ID === undefined) {
             await writeFile(join(publicManifestDir, '.gitignore'), '*');
@@ -396,7 +395,7 @@ export async function getNextBuilderEager() {
 
     protected async getInputFiles(): Promise<string[]> {
       const inputFiles = await super.getInputFiles();
-      if (this.config.workflowConfig?.config.build?.dirs) return inputFiles;
+      if (this.config.dirs.join() !== '.') return inputFiles;
 
       return inputFiles.filter((file) => {
         const entry = relative(this.config.workingDir, file).replaceAll(
@@ -438,9 +437,7 @@ export async function getNextBuilderEager() {
         version: '0',
         workflows: {
           maxDuration: 'max',
-          experimentalTriggers: [
-            createWorkflowQueueTrigger({ namespace: this.queueNamespace }),
-          ],
+          experimentalTriggers: [WORKFLOW_QUEUE_TRIGGER],
         },
       };
 

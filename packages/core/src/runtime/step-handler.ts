@@ -18,7 +18,6 @@ import {
   SPEC_VERSION_SUPPORTS_COMPRESSION,
   type Step,
   StepInvokePayloadSchema,
-  type World,
 } from '@workflow/world';
 import { describeError } from '../describe-error.js';
 import { runtimeLogger, stepLogger } from '../logger.js';
@@ -59,7 +58,7 @@ import {
   withHealthCheck,
 } from './helpers.js';
 import { safeWaitUntil } from './wait-until.js';
-import { getWorld, type WorldHandlers } from './world.js';
+import { getWorld, getWorldHandlers, type WorldHandlers } from './world.js';
 
 const DEFAULT_STEP_MAX_RETRIES = 3;
 
@@ -1154,19 +1153,18 @@ function createStepHandler(namespace?: string) {
     });
 }
 
+const stepHandler = createStepHandler();
+
 /**
  * A single route that handles any step execution request and routes to the
  * appropriate step function. We may eventually want to create different bundles
  * for each step, this is temporary.
  */
 let cachedStepHandler: ((req: Request) => Promise<Response>) | undefined;
-let cachedWorld: World | undefined;
 export const stepEntrypoint: (req: Request) => Promise<Response> =
   /* @__PURE__ */ withHealthCheck(async (req) => {
-    const world = await getWorld();
-    if (!cachedStepHandler || cachedWorld !== world) {
-      cachedStepHandler = createStepHandler()(world);
-      cachedWorld = world;
+    if (!cachedStepHandler) {
+      cachedStepHandler = stepHandler(await getWorldHandlers());
     }
     return cachedStepHandler(req);
   });

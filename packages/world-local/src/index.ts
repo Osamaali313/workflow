@@ -2,12 +2,7 @@ import { promises as fs } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { QueuePrefix, World } from '@workflow/world';
-import {
-  getQueueTopicPrefix,
-  reenqueueActiveRuns,
-  resolveQueueNamespace,
-  SPEC_VERSION_CURRENT,
-} from '@workflow/world';
+import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
 import type { Config } from './config.js';
 import { config } from './config.js';
 import {
@@ -93,11 +88,7 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
               })) as typeof storage.runs.list,
           }
         : storage.runs;
-      await reenqueueActiveRuns(
-        recoveryRuns,
-        queue.queue,
-        getQueueTopicPrefix('workflow', resolveQueueNamespace())
-      );
+      await reenqueueActiveRuns(recoveryRuns, queue.queue, 'world-local');
     },
     async close() {
       await queue.close();

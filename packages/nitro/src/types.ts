@@ -1,4 +1,4 @@
-import type { SourcemapMode } from '@workflow/config';
+import type { SourcemapMode } from '@workflow/builders/workflow-config';
 
 export interface ModuleOptions {
   /** @internal */

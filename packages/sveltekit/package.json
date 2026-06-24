@@ -27,7 +27,6 @@
   "dependencies": {
     "@swc/core": "catalog:",
     "@workflow/builders": "workspace:*",
-    "@workflow/config": "workspace:*",
     "@workflow/rollup": "workspace:*",
     "@workflow/swc-plugin": "workspace:*",
     "@workflow/vite": "workspace:*",

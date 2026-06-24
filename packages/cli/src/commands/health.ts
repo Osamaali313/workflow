@@ -162,7 +162,7 @@ async function verifyLocalServerAccessible(
   );
 }
 
-function isLocalBackend(backend: string | undefined): boolean {
+function isLocalBackend(backend: string): boolean {
   return backend === 'local' || backend === '@workflow/world-local';
 }
 

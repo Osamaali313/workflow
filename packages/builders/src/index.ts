@@ -50,10 +50,9 @@ export {
 } from './transform-utils.js';
 export type {
   AstroConfig,
-  BaseBuilderConfig,
-  BuilderConfig,
   BuildTarget,
   NextConfig,
+  SourcemapMode,
   StandaloneConfig,
   SvelteKitConfig,
   VercelBuildOutputConfig,
@@ -62,3 +61,4 @@ export type {
 export { isValidBuildTarget, validBuildTargets } from './types.js';
 export { VercelBuildOutputAPIBuilder } from './vercel-build-output-api.js';
 export { resolveWorkflowAliasRelativePath } from './workflow-alias.js';
+export type { WorkflowConfigLoader } from './workflow-config.js';

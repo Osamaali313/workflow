@@ -1,11 +1,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setRuntimeWorkflowConfig } from '@workflow/config/runtime';
-import { closeWorld } from '@workflow/core/runtime';
+import { setWorld } from '@workflow/core/runtime';
 import type { World } from '@workflow/world';
-import { resolveQueueNamespace } from '@workflow/world/queue.js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { getWorkflowConfig } from '../config/workflow-config.js';
 import { setupCliWorld } from './setup.js';
 
 vi.mock('../update-check.js', () => ({
@@ -13,24 +12,12 @@ vi.mock('../update-check.js', () => ({
 }));
 
 const project = mkdtempSync(join(tmpdir(), 'workflow-cli-world-'));
-const originalCwd = process.env.WORKFLOW_OBSERVABILITY_CWD;
-const originalTarget = process.env.WORKFLOW_TARGET_WORLD;
 
-afterEach(async () => {
-  await closeWorld();
-  setRuntimeWorkflowConfig(undefined);
+afterEach(() => {
+  setWorld(undefined);
+  vi.unstubAllEnvs();
   delete (globalThis as { __workflowCliWorldStarted?: boolean })
     .__workflowCliWorldStarted;
-  if (originalCwd === undefined) {
-    delete process.env.WORKFLOW_OBSERVABILITY_CWD;
-  } else {
-    process.env.WORKFLOW_OBSERVABILITY_CWD = originalCwd;
-  }
-  if (originalTarget === undefined) {
-    delete process.env.WORKFLOW_TARGET_WORLD;
-  } else {
-    process.env.WORKFLOW_TARGET_WORLD = originalTarget;
-  }
   rmSync(project, { recursive: true, force: true });
 });
 
@@ -39,7 +26,7 @@ it('uses the configured World instead of the implicit local default', async () =
     join(project, 'workflow.config.ts'),
     `export default {
       world: './workflow.world.mjs',
-      queue: { namespace: 'configured' }
+      build: { dirs: ['jobs'] }
     };`
   );
   writeFileSync(
@@ -49,17 +36,18 @@ it('uses the configured World instead of the implicit local default', async () =
       start() { globalThis.__workflowCliWorldStarted = true; }
     });`
   );
-  process.env.WORKFLOW_OBSERVABILITY_CWD = project;
+  vi.stubEnv('WORKFLOW_OBSERVABILITY_CWD', project);
+  vi.stubEnv('WORKFLOW_TARGET_WORLD', '');
   delete process.env.WORKFLOW_TARGET_WORLD;
+
+  const config = await getWorkflowConfig({ buildTarget: 'standalone' });
+  expect(config.dirs).toEqual(['jobs']);
+  expect(config.worldModule).toBe(join(project, 'workflow.world.mjs'));
 
   const world = await setupCliWorld(
     {
       json: true,
       verbose: false,
-      env: 'production',
-      authToken: '',
-      project: '',
-      team: '',
     },
     'test'
   );
@@ -69,6 +57,5 @@ it('uses the configured World instead of the implicit local default', async () =
     (globalThis as { __workflowCliWorldStarted?: boolean })
       .__workflowCliWorldStarted
   ).toBe(true);
-  expect(process.env.WORKFLOW_TARGET_WORLD).toBeUndefined();
-  expect(resolveQueueNamespace()).toBe('configured');
+  expect(process.env.WORKFLOW_TARGET_WORLD).toBe('configured');
 });

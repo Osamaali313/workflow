@@ -86,7 +86,7 @@ export async function getDecoratorOptionsForDirectoryWithConfigPath(
 }
 
 export function createBaseBuilderConfig(
-  config: BaseBuilderConfig
+  options: Omit<BaseBuilderConfig, 'dirs'> & { dirs?: string[] }
 ): BaseBuilderConfig {
-  return config;
+  return { ...options, dirs: options.dirs ?? ['workflows'] };
 }
