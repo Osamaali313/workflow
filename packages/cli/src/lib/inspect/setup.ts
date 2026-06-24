@@ -151,7 +151,6 @@ export const setupCliWorld = async (
 
   if (configured && loadedConfig.worldModule) {
     const world = await loadWorld(loadedConfig.worldModule);
-    await world.start?.();
     setWorld(world);
     return world;
   }

@@ -28,6 +28,7 @@ export async function getNextBuilderEager() {
 
   class NextBuilder extends BaseBuilderClass {
     protected declare config: BuilderNextConfig & {
+      filterToNextEntrypoints: boolean;
       pageExtensions: NonNullable<ProjectNextConfig['pageExtensions']>;
     };
 
@@ -395,7 +396,7 @@ export async function getNextBuilderEager() {
 
     protected async getInputFiles(): Promise<string[]> {
       const inputFiles = await super.getInputFiles();
-      if (this.config.dirs.join() !== '.') return inputFiles;
+      if (!this.config.filterToNextEntrypoints) return inputFiles;
 
       return inputFiles.filter((file) => {
         const entry = relative(this.config.workingDir, file).replaceAll(

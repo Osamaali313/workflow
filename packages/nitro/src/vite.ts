@@ -6,8 +6,7 @@ import type {} from 'nitro/vite';
 import { join } from 'pathe';
 import type { Plugin } from 'vite';
 import type { LocalBuilder } from './builders.js';
-import type { ModuleOptions } from './index.js';
-import nitroModule from './index.js';
+import { type ModuleOptions, setupNitro } from './index.js';
 
 export function workflow(options?: ModuleOptions): Plugin[] {
   let builder: LocalBuilder | undefined;
@@ -41,7 +40,7 @@ export function workflow(options?: ModuleOptions): Plugin[] {
             ...options,
             _vite: true,
           };
-          builder = await nitroModule.setup(nitro);
+          builder = await setupNitro(nitro);
         },
       },
       // NOTE: This is a workaround because Nitro passes the 404 requests to the dev server to handle.

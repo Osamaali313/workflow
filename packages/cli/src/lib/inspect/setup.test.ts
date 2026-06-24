@@ -21,7 +21,7 @@ afterEach(() => {
   rmSync(project, { recursive: true, force: true });
 });
 
-it('uses the configured World instead of the implicit local default', async () => {
+it('uses the configured World without starting background workers', async () => {
   writeFileSync(
     join(project, 'workflow.config.ts'),
     `export default {
@@ -56,6 +56,6 @@ it('uses the configured World instead of the implicit local default', async () =
   expect(
     (globalThis as { __workflowCliWorldStarted?: boolean })
       .__workflowCliWorldStarted
-  ).toBe(true);
+  ).toBeUndefined();
   expect(process.env.WORKFLOW_TARGET_WORLD).toBe('configured');
 });

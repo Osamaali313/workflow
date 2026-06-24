@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, win32 } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { World } from '@workflow/world';
 import { findUp } from 'find-up';
 import { createJiti } from 'jiti';
@@ -68,7 +69,10 @@ export async function loadWorkflowConfig({
     `World module must be a relative path or package specifier: ${world}`
   );
   if (!world.startsWith('.')) {
-    return { worldModule: createJiti(path).esmResolve(world), config };
+    return {
+      worldModule: fileURLToPath(createJiti(path).esmResolve(world)),
+      config,
+    };
   }
 
   const worldModule = resolve(dirname(path), world);

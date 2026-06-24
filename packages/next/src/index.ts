@@ -27,6 +27,11 @@ const workflowSerdeComputedPropertyPattern =
   /\[\s*WORKFLOW_(?:SERIALIZE|DESERIALIZE)\s*\]/;
 
 const PSEUDO_EXTERNAL_PACKAGES = new Set(['server-only', 'client-only']);
+const CONFIGURED_WORLD_RUNTIME_PACKAGES = new Set([
+  'workflow',
+  '@workflow/core',
+  '@workflow/world',
+]);
 const warnedAutoRemovedServerExternalPackages = new Set<string>();
 
 interface WorkflowPatternMatch {
@@ -35,12 +40,15 @@ interface WorkflowPatternMatch {
   hasSerde: boolean;
 }
 
-interface DetectedServerExternalPackage {
-  packageName: string;
-  hasUseWorkflow: boolean;
-  hasUseStep: boolean;
-  hasSerde: boolean;
-}
+type DetectedServerExternalPackage =
+  | {
+      packageName: string;
+      reason: 'workflow-code';
+      hasUseWorkflow: boolean;
+      hasUseStep: boolean;
+      hasSerde: boolean;
+    }
+  | { packageName: string; reason: 'configured-world-runtime' };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -76,6 +84,9 @@ function detectWorkflowPatterns(source: string): WorkflowPatternMatch {
 }
 
 function getIssueLabels(detected: DetectedServerExternalPackage): string[] {
+  if (detected.reason === 'configured-world-runtime') {
+    return ['configured World runtime'];
+  }
   const issues: string[] = [];
   if (detected.hasUseWorkflow) {
     issues.push('"use workflow" functions');
@@ -149,6 +160,7 @@ async function detectServerExternalPackage(
 
   return {
     packageName,
+    reason: 'workflow-code',
     hasUseWorkflow,
     hasUseStep,
     hasSerde,
@@ -181,7 +193,7 @@ function warnAboutAutoRemovedServerExternalPackages(
     .join(', ');
 
   console.warn(
-    `\n⚠ Workflow found workflow code in serverExternalPackages: ${packageDescriptions}.` +
+    `\n⚠ Workflow must compile these serverExternalPackages: ${packageDescriptions}.` +
       `\n  Workflow removed the affected entries from serverExternalPackages for this build and is compiling the packages anyway.` +
       `\n  Remove ${packageNames} from serverExternalPackages in next.config to silence this warning.\n`
   );
@@ -413,6 +425,13 @@ export function withWorkflow(
         if (PSEUDO_EXTERNAL_PACKAGES.has(packageName)) {
           continue;
         }
+        if (worldModule && CONFIGURED_WORLD_RUNTIME_PACKAGES.has(packageName)) {
+          detectedWorkflowPackages.push({
+            packageName,
+            reason: 'configured-world-runtime',
+          });
+          continue;
+        }
 
         try {
           const detected = await detectServerExternalPackage(
@@ -498,6 +517,7 @@ export function withWorkflow(
             watch: shouldWatch,
             // getInputFiles filters the default project scan to Next.js entrypoints
             dirs: workflowConfig.build?.dirs ?? ['.'],
+            filterToNextEntrypoints: workflowConfig.build?.dirs === undefined,
             pageExtensions: nextConfig.pageExtensions ?? [
               'tsx',
               'ts',

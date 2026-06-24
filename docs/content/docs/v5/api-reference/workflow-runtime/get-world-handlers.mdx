@@ -9,7 +9,9 @@ prerequisites:
 
 Returns a restricted view of the [World](/docs/api-reference/workflow-runtime/world) exposing `createQueueHandler` and `specVersion`.
 
-Configured providers share the instance cached by [`getWorld()`](/docs/api-reference/workflow-runtime/get-world). Legacy environment-based Worlds keep a separate handler cache.
+Configured Worlds share the instance cached by
+[`getWorld()`](/docs/api-reference/workflow-runtime/get-world). Legacy
+environment-based Worlds keep a separate handler cache.
 
 ```typescript lineNumbers
 import { getWorldHandlers } from "workflow/runtime";

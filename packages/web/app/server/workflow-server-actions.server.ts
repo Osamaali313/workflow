@@ -28,6 +28,9 @@ import type {
 } from '@workflow/world';
 import { type APIConfig, createVercelWorld } from '@workflow/world-vercel';
 
+const WebWorld = Symbol.for('@workflow/web//world');
+const webGlobals = globalThis as typeof globalThis & { [WebWorld]?: World };
+
 /**
  * Environment variable map for world configuration.
  *
@@ -101,6 +104,7 @@ function getEffectiveBackendId(): string {
   if (targetWorld) {
     return targetWorld;
   }
+  if (webGlobals[WebWorld]) return 'configured';
   // Match @workflow/core/runtime defaulting: vercel if VERCEL_DEPLOYMENT_ID is set, else local.
   return process.env.VERCEL_DEPLOYMENT_ID ? 'vercel' : 'local';
 }
@@ -401,7 +405,11 @@ const worldCache = new Map<string, World>();
  */
 async function getWorldFromEnv(userEnvMap: EnvMap): Promise<World> {
   const backendId = getEffectiveBackendId();
-  if (backendId === 'configured') return workflowRunHelpers.getWorld();
+  if (backendId === 'configured') {
+    const world = webGlobals[WebWorld];
+    if (world) return world;
+    return workflowRunHelpers.getWorld();
+  }
   const isVercelWorld = ['vercel', '@workflow/world-vercel'].includes(
     backendId
   );

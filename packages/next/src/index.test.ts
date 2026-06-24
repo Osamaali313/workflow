@@ -118,6 +118,7 @@ describe('withWorkflow builder config', () => {
     expect(builderConfigs).toHaveLength(1);
     expect(builderConfigs[0]).toMatchObject({
       dirs: ['.'],
+      filterToNextEntrypoints: true,
       pageExtensions: ['page.ts'],
       projectRoot: '/repo',
       moduleSpecifierRoot: process.cwd(),
@@ -243,6 +244,7 @@ describe('withWorkflow builder config', () => {
 
     expect(builderConfigs[0]).toMatchObject({
       dirs: ['jobs'],
+      filterToNextEntrypoints: false,
       projectRoot: '..',
       sourcemap: false,
       worldModule,
@@ -252,6 +254,50 @@ describe('withWorkflow builder config', () => {
         '@workflow/world/configured'
       ]
     ).toBe('./workflow.world.ts');
+  });
+
+  it('honors an explicit project root scan', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-dirs-'));
+    process.chdir(projectDir);
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `export default { build: { dirs: ['.'] } };`
+    );
+
+    await withWorkflow({})('phase-production-build', { defaultConfig: {} });
+
+    expect(builderConfigs[0]).toMatchObject({
+      dirs: ['.'],
+      filterToNextEntrypoints: false,
+    });
+  });
+
+  it('bundles configured World runtime packages', async () => {
+    const projectDir = mkdtempSync(join(realTmpDir, 'workflow-next-world-'));
+    process.chdir(projectDir);
+    writeFile(join(projectDir, 'workflow.world.ts'), 'export default {};');
+    writeFile(
+      join(projectDir, 'workflow.config.ts'),
+      `export default { world: './workflow.world.ts' };`
+    );
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const resolvedConfig = await withWorkflow({
+      serverExternalPackages: [
+        'workflow',
+        '@workflow/core',
+        '@workflow/world',
+        'plain-external',
+      ],
+    })('phase-production-build', { defaultConfig: {} });
+
+    expect(resolvedConfig.serverExternalPackages).not.toEqual(
+      expect.arrayContaining(['workflow', '@workflow/core', '@workflow/world'])
+    );
+    expect(resolvedConfig.serverExternalPackages).toContain('plain-external');
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('configured World runtime');
+    warnSpy.mockRestore();
   });
 
   it('removes workflow packages from serverExternalPackages for this build', async () => {

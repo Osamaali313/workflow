@@ -44,6 +44,12 @@ const config = {
 export default config;
 ```
 
+Set the connection string in your environment:
+
+```bash title=".env"
+WORKFLOW_POSTGRES_URL="postgres://user:password@host:5432/database"
+```
+
 Run the migration script to create the necessary tables in your database. Ensure `WORKFLOW_POSTGRES_URL` is set when running this command:
 
 <Tabs items={["npm", "pnpm", "Yarn", "Bun"]}>
@@ -88,10 +94,9 @@ The migration is idempotent and can safely be run as a post-deployment lifecycle
 
 ## Starting the World
 
-Workflow calls `start()` once, immediately before the configured World is first
-used. Because the Postgres worker must also recover queued work after a process
-restart, resolve it during server startup rather than waiting for the first
-request.
+Workflow starts the configured World the first time `getWorld()` runs. Call
+`getWorld()` during server startup so Postgres begins processing queued work
+immediately.
 
 <Tabs items={["Next.js", "SvelteKit", "Nitro"]}>
 
@@ -106,6 +111,10 @@ export async function register() {
 }
 ```
 
+<Callout type="info">
+Learn more about [Next.js Instrumentation](https://nextjs.org/docs/app/guides/instrumentation).
+</Callout>
+
 </Tab>
 
 <Tab value="SvelteKit">
@@ -118,6 +127,10 @@ export const init: ServerInit = async () => {
   await getWorld();
 };
 ```
+
+<Callout type="info">
+Learn more about [SvelteKit Hooks](https://svelte.dev/docs/kit/hooks).
+</Callout>
 
 </Tab>
 
@@ -141,12 +154,13 @@ export default defineConfig({
 });
 ```
 
+<Callout type="info">
+Learn more about [Nitro Plugins](https://v3.nitro.build/docs/plugins).
+</Callout>
+
 </Tab>
 
 </Tabs>
-
-If you construct a Postgres World outside Workflow configuration, call
-`start()` yourself during server initialization.
 
 <Callout type="info">
 The Postgres World requires a long-lived worker process that polls the database for jobs. This does not work on serverless environments. For Vercel deployments, use the [Vercel World](/docs/deploying/world/vercel-world) instead.
@@ -157,6 +171,9 @@ The Postgres World requires a long-lived worker process that polls the database 
 Use the `workflow` CLI to inspect workflows stored in PostgreSQL:
 
 ```bash
+# Set your database URL
+export WORKFLOW_POSTGRES_URL="postgres://user:password@host:5432/database"
+
 # List workflow runs
 npx workflow inspect runs
 
@@ -198,6 +215,23 @@ Maximum size of the internal `pg.Pool` used when `createWorld()` constructs the 
 
 For higher worker concurrency, Graphile Worker recommends setting `maxPoolSize` to `10` or `queueConcurrency + 2`, whichever is larger.
 
+### Programmatic configuration
+
+Configure the World in `workflow.world.ts`:
+
+```typescript title="workflow.world.ts" lineNumbers
+import { createWorld } from "@workflow/world-postgres";
+
+const world = createWorld({
+  connectionString: process.env.WORKFLOW_POSTGRES_URL!,
+  jobPrefix: "myapp_",
+  queueConcurrency: 50,
+  maxPoolSize: 52, // overrides WORKFLOW_POSTGRES_MAX_POOL_SIZE
+});
+
+export default world;
+```
+
 ## How It Works
 
 The Postgres World uses PostgreSQL as a durable backend:
@@ -221,17 +255,17 @@ Ensure your deployment has:
 
 1. Network access to your PostgreSQL database
 2. Environment variables configured correctly
-3. The World selected in `workflow.config.ts`
+3. `getWorld()` called during server initialization
 
 <Callout type="info">
-The Postgres World is not compatible with Vercel deployments. Omit `world` to
-select the [Vercel World](/docs/deploying/world/vercel-world) automatically on Vercel, or select an
-appropriate World in `workflow.world.ts` based on the deployment environment.
+Do not configure the Postgres World for Vercel deployments. When `world` and
+`WORKFLOW_TARGET_WORLD` are omitted, Workflow automatically uses the
+[Vercel World](/docs/deploying/world/vercel-world).
 </Callout>
 
 ## Limitations
 
-- **Requires long-running process** - Configured Worlds start automatically; Worlds created elsewhere require `start()` during server initialization
+- **Requires long-running process** - Call `getWorld()` during server startup so the worker starts polling for jobs
 - **PostgreSQL infrastructure** - Requires a PostgreSQL database (self-hosted or managed)
 - **Not compatible with Vercel** - Use the [Vercel World](/docs/deploying/world/vercel-world) for Vercel deployments
 

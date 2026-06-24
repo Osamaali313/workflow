@@ -1,3 +1,3 @@
 import type { World } from './interfaces.js';
 
-export default undefined as World | undefined;
+export default Symbol.for('@workflow/world//unconfigured') as unknown as World;

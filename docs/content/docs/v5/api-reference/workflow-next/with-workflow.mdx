@@ -7,6 +7,8 @@ prerequisites:
   - /docs/getting-started/next
 ---
 
+Configures webpack/turbopack loaders to transform workflow code (`"use step"`/`"use workflow"` directives).
+
 ## Usage
 
 To enable `"use step"` and `"use workflow"` directives while developing locally or deploying to production, wrap your `nextConfig` with `withWorkflow`.
@@ -122,8 +124,11 @@ Setting `sourcemap` explicitly affects **all** generated bundles (steps, workflo
 
 The option can also be set via the `WORKFLOW_SOURCEMAP` environment variable,
 which accepts the same values plus `'0'` / `'1'` as aliases for `false` /
-`true`. Precedence is: explicit `withWorkflow` option >
-`WORKFLOW_SOURCEMAP` > `workflow.config.ts` > per-bundle default.
+`true`. Precedence is: explicit `withWorkflow` option > `WORKFLOW_SOURCEMAP` >
+`workflow.config.ts` > the environment-aware default (`'inline'` in
+development, `false` in production). Development is detected from `next dev` /
+`NODE_ENV=development`, so the framework option, environment variable, and
+shared config can each force either behavior in either environment.
 
 <Callout type="info">
 The `workflows.local` options only affect local development. When `world` is not

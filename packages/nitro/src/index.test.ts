@@ -1,7 +1,22 @@
 import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalBuilder, VercelBuilder } from './builders.js';
 import nitroModule from './index.js';
+
+const workflowConfig = vi.hoisted(() => ({
+  worldModule: undefined as string | undefined,
+}));
+
+vi.mock('@workflow/builders/workflow-config', () => ({
+  loadWorkflowConfig: async () => ({
+    config: {},
+    worldModule: workflowConfig.worldModule,
+  }),
+}));
+
+afterEach(() => {
+  workflowConfig.worldModule = undefined;
+});
 
 type StubOptions = {
   routing: boolean;
@@ -47,6 +62,61 @@ function createNitroStub({
 }
 
 describe('@workflow/nitro virtual handlers', () => {
+  it('bundles the runtime for configured Worlds in production', async () => {
+    workflowConfig.worldModule = '/tmp/project/workflow.world.ts';
+    const rollupHooks: Array<
+      (nitro: unknown, config: { plugins: unknown[] }) => void
+    > = [];
+    const nitro = createNitroStub({ routing: true });
+    nitro.hooks.hook = (name: string, hook: (nitro: unknown) => void) => {
+      if (name === 'rollup:before') rollupHooks.push(hook as never);
+    };
+
+    await nitroModule.setup(nitro);
+
+    const rollupConfig = { plugins: [] };
+    for (const hook of rollupHooks) hook(nitro, rollupConfig);
+    expect(nitro.options.alias['@workflow/world/configured']).toBe(
+      workflowConfig.worldModule
+    );
+    expect(rollupConfig.plugins).toContainEqual(
+      expect.objectContaining({ name: 'workflow:force-inline' })
+    );
+  });
+
+  it('shares the configured World with the development dashboard', async () => {
+    workflowConfig.worldModule = '/tmp/project/workflow.world.ts';
+    const nitro = createNitroStub({ routing: true, dev: true });
+
+    await nitroModule.setup(nitro);
+
+    const dashboard = nitro.options.virtual['#workflow/dashboard-handler'];
+    expect(dashboard).toContain(
+      'import { getWorld } from "@workflow/core/runtime";'
+    );
+    expect(dashboard).toContain(
+      'globalThis[Symbol.for("@workflow/web//world")] = await getWorld();'
+    );
+  });
+
+  it.each([
+    false,
+    true,
+  ])('initializes the World before loading Nitro dev handlers (routing=$routing)', async (routing) => {
+    const nitro = createNitroStub({ routing, dev: true });
+
+    await nitroModule.setup(nitro);
+
+    for (const buildPath of ['workflows.mjs', 'webhook.mjs']) {
+      const source = nitro.options.virtual[`#workflow/${buildPath}`];
+      expect(source).toContain(
+        'import { getWorld } from "@workflow/core/runtime";'
+      );
+      expect(source).toContain('const worldReady = getWorld();');
+      expect(source).toContain('await worldReady;');
+    }
+  });
+
   it('registers the combined flow + webhook virtual handlers for Nitro v2', async () => {
     const nitro = createNitroStub({ routing: false });
 

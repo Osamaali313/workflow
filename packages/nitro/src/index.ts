@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WORKFLOW_QUEUE_TRIGGER } from '@workflow/builders';
 import { loadWorkflowConfig } from '@workflow/builders/workflow-config';
 import { workflowTransformPlugin } from '@workflow/rollup';
-import type { Nitro, RollupConfig } from 'nitro/types';
+import type { Nitro, NitroModule, RollupConfig } from 'nitro/types';
 import { join } from 'pathe';
 import { LocalBuilder, VercelBuilder } from './builders.js';
 import type { ModuleOptions } from './types';
@@ -67,7 +67,7 @@ function addNodeRequireBanner(config: RollupConfig): void {
   }
 }
 
-const nitroModule = {
+const internalNitroModule = {
   name: 'workflow/nitro',
   async setup(nitro: Nitro): Promise<LocalBuilder | undefined> {
     const { config: workflowConfig, worldModule } = await loadWorkflowConfig({
@@ -145,10 +145,10 @@ const nitroModule = {
       }
     }
 
-    // In dev mode, force workflow SDK packages to be bundled by Nitro's
-    // Rollup rather than externalized. This ensures the SWC transform
-    // plugin processes files containing workflow patterns (like
-    // @workflow/core/dist/runtime/run.js) and adds the classId
+    // Force workflow SDK packages to be bundled by Nitro's Rollup in dev and
+    // when a configured World must be resolved through Nitro's alias. In dev,
+    // this also ensures the SWC transform processes files containing workflow
+    // patterns (like @workflow/core/dist/runtime/run.js) and adds the classId
     // registration IIFEs needed for serialization. Without this, serde
     // classes from npm packages (like `Run`) would be externalized, the
     // SWC transform would never fire on them, and serialization would
@@ -159,7 +159,7 @@ const nitroModule = {
     // as non-external. This is more targeted than `noExternals = true`
     // which would bundle ALL dependencies and cause TDZ errors from
     // circular imports in packages like vue-bundle-renderer/h3.
-    if (nitro.options.dev) {
+    if (nitro.options.dev || worldModule) {
       nitro.hooks.hook(
         'rollup:before',
         (_nitro: Nitro, config: RollupConfig) => {
@@ -281,7 +281,7 @@ const nitroModule = {
       }
 
       if (nitro.options.dev) {
-        addDashboardHandler(nitro);
+        addDashboardHandler(nitro, worldModule !== undefined);
       }
 
       addVirtualHandler(
@@ -364,11 +364,20 @@ const nitroModule = {
   },
 };
 
+export const setupNitro = internalNitroModule.setup;
+
+const nitroModule = {
+  name: internalNitroModule.name,
+  async setup(nitro: Nitro) {
+    await setupNitro(nitro);
+  },
+} satisfies NitroModule;
+
 export default nitroModule;
 
 const DASHBOARD_VIRTUAL_ID = '#workflow/dashboard-handler';
 
-function addDashboardHandler(nitro: Nitro) {
+function addDashboardHandler(nitro: Nitro, hasConfiguredWorld: boolean) {
   const route = '/_workflow';
   nitro.options.handlers.push({ route, handler: DASHBOARD_VIRTUAL_ID });
 
@@ -386,10 +395,14 @@ function addDashboardHandler(nitro: Nitro) {
 
   const handlerSource = /* js */ `
     const __workflowWebServerUrl = ${JSON.stringify(webServerUrl)};
+    const __workflowHasConfiguredWorld = ${hasConfiguredWorld};
     let serverPromise = null;
     async function getDashboardUrl() {
       if (!serverPromise) {
         serverPromise = (async () => {
+          if (__workflowHasConfiguredWorld && !process.env.WORKFLOW_TARGET_WORLD) {
+            globalThis[Symbol.for("@workflow/web//world")] = await getWorld();
+          }
           const { startServer } = await import(/* @vite-ignore */ /* webpackIgnore: true */ __workflowWebServerUrl);
           const server = await startServer(0);
           const address = server.address();
@@ -407,6 +420,7 @@ function addDashboardHandler(nitro: Nitro) {
   if (!nitro.routing) {
     nitro.options.virtual[DASHBOARD_VIRTUAL_ID] = /* js */ `
       import { fromWebHandler } from "h3";
+      import { getWorld } from "@workflow/core/runtime";
       ${handlerSource}
       export default fromWebHandler(async () => {
         try {
@@ -420,6 +434,7 @@ function addDashboardHandler(nitro: Nitro) {
     `;
   } else {
     nitro.options.virtual[DASHBOARD_VIRTUAL_ID] = /* js */ `
+      import { getWorld } from "@workflow/core/runtime";
       ${handlerSource}
       export default async () => {
         try {
@@ -463,13 +478,16 @@ function addVirtualHandler(
     if (!nitro.routing) {
       nitro.options.virtual[`#${buildPath}`] = /* js */ `
       import { fromWebHandler } from "h3";
+      import { getWorld } from "@workflow/core/runtime";
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
       const handlerPath = ${handlerImportPath};
+      const worldReady = getWorld();
       let currentVersion = "";
       let currentImportPath = "";
 
       async function loadPOST() {
+        await worldReady;
         const version = String(statSync(handlerPath).mtimeMs);
         if (version !== currentVersion) {
           currentVersion = version;
@@ -486,13 +504,16 @@ function addVirtualHandler(
     `;
     } else {
       nitro.options.virtual[`#${buildPath}`] = /* js */ `
+      import { getWorld } from "@workflow/core/runtime";
       import { statSync } from "node:fs";
       import { pathToFileURL } from "node:url";
       const handlerPath = ${handlerImportPath};
+      const worldReady = getWorld();
       let currentVersion = "";
       let currentImportPath = "";
 
       async function loadPOST() {
+        await worldReady;
         const version = String(statSync(handlerPath).mtimeMs);
         if (version !== currentVersion) {
           currentVersion = version;

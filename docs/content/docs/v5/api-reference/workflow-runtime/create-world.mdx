@@ -1,8 +1,8 @@
 ---
 title: createWorld
-description: Create a new World instance from the active Workflow configuration.
+description: Resolve the World from the active Workflow configuration without using the runtime cache.
 type: reference
-summary: Resolve a fresh World without using the runtime cache.
+summary: Resolve the active World without using the runtime cache.
 prerequisites:
   - /docs/api-reference/workflow-runtime/get-world
 related:
@@ -13,7 +13,11 @@ Creates a new [World](/docs/api-reference/workflow-runtime/world) using the
 [configured World selection order](/docs/foundations/configuration#world-selection).
 `WORKFLOW_TARGET_WORLD` takes precedence over `workflow.config.ts`.
 
-Unlike [`getWorld()`](/docs/api-reference/workflow-runtime/get-world), which caches a singleton instance, `createWorld()` constructs a fresh instance on every call. Application code should almost always use `getWorld()` — `createWorld()` is for infrastructure code that manages World lifecycles itself.
+Unlike [`getWorld()`](/docs/api-reference/workflow-runtime/get-world),
+`createWorld()` does not cache or start the World. Environment-selected Worlds
+are constructed on each call. A World selected in `workflow.config.ts` is the
+instance exported by its module. Application code should almost always use
+`getWorld()`.
 
 ```typescript lineNumbers
 import { createWorld } from "workflow/runtime";
@@ -29,7 +33,7 @@ This function does not accept any parameters.
 
 ### Returns
 
-Returns a `Promise<World>` with a newly constructed World instance.
+Returns the selected `World` as a `Promise<World>`.
 
 <Callout type="info">
   Tooling that needs to construct a World with explicit (non-environment) configuration should instantiate the specific World implementation directly and register it with [`setWorld()`](/docs/api-reference/workflow-runtime/set-world).

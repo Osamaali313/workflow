@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
@@ -5,7 +6,6 @@ import {
   resolveWorkflowTargetWorld,
 } from '@workflow/utils';
 import type { World } from '@workflow/world';
-import configuredWorld from '@workflow/world/configured';
 import { createLocalWorld } from '@workflow/world-local';
 import { createVercelWorld } from '@workflow/world-vercel';
 
@@ -35,9 +35,15 @@ const globalSymbols: typeof globalThis & {
   [StubbedWorldCachePromise]?: Promise<World>;
 } = globalThis;
 
-function getConfiguredWorld() {
+async function getConfiguredWorld() {
   if (process.env.WORKFLOW_TARGET_WORLD) return;
-  return configuredWorld;
+  const world = (await import('@workflow/world/configured')).default as
+    | World
+    | symbol
+    | undefined;
+  if (typeof world === 'symbol') return;
+  assert(world, 'Configured World module must default-export a World');
+  return world;
 }
 
 // Dynamic import for custom world modules. Uses a standard import()
@@ -82,10 +88,7 @@ function resolveModulePath(specifier: string): string {
  * vars should call createVercelWorld() directly with an explicit config and
  * use setWorld() to inject the instance.
  */
-export const createWorld = async (): Promise<World> => {
-  const configured = getConfiguredWorld();
-  if (configured) return configured;
-
+const createEnvironmentWorld = async (): Promise<World> => {
   const targetWorld = resolveWorkflowTargetWorld();
 
   if (isVercelWorldTarget(targetWorld)) {
@@ -140,6 +143,10 @@ export const createWorld = async (): Promise<World> => {
   );
 };
 
+export const createWorld = async (): Promise<World> => {
+  return (await getConfiguredWorld()) ?? createEnvironmentWorld();
+};
+
 export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
 
 /**
@@ -148,11 +155,11 @@ export type WorldHandlers = Pick<World, 'createQueueHandler' | 'specVersion'>;
  * incomplete runtime configuration.
  */
 export const getWorldHandlers = async (): Promise<WorldHandlers> => {
-  if (getConfiguredWorld()) return getWorld();
-
+  if (globalSymbols[WorldCache]) return globalSymbols[WorldCache];
   if (globalSymbols[StubbedWorldCache]) {
     return globalSymbols[StubbedWorldCache];
   }
+  if (await getConfiguredWorld()) return getWorld();
   // Store the promise immediately to prevent race conditions with concurrent calls.
   // Clear on rejection so subsequent calls can retry instead of caching the failure.
   if (!globalSymbols[StubbedWorldCachePromise]) {
@@ -176,16 +183,15 @@ export const getWorld = async (): Promise<World> => {
   // Store the promise immediately to prevent race conditions with concurrent calls.
   // Clear on rejection so subsequent calls can retry instead of caching the failure.
   if (!globalSymbols[WorldCachePromise]) {
-    const configured = !!getConfiguredWorld();
-    globalSymbols[WorldCachePromise] = createWorld()
-      .then(async (world) => {
-        if (configured) await world.start?.();
-        return world;
-      })
-      .catch((err) => {
-        globalSymbols[WorldCachePromise] = undefined;
-        throw err;
-      });
+    globalSymbols[WorldCachePromise] = (async () => {
+      const configured = await getConfiguredWorld();
+      const world = configured ?? (await createEnvironmentWorld());
+      if (configured) await world.start?.();
+      return world;
+    })().catch((err) => {
+      globalSymbols[WorldCachePromise] = undefined;
+      throw err;
+    });
   }
   globalSymbols[WorldCache] = await globalSymbols[WorldCachePromise];
   return globalSymbols[WorldCache];
