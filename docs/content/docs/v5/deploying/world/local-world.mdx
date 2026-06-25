@@ -40,39 +40,50 @@ Learn more in the [Observability](/docs/observability) documentation.
 
 ## Configuration
 
-The local world works with zero configuration, but you can customize behavior through environment variables or programmatically via `createLocalWorld()`.
+The local world works with zero configuration, but you can customize behavior through environment variables or `createWorld()` options. Options take precedence over environment variables.
 
 ### `WORKFLOW_LOCAL_DATA_DIR`
 
-Directory for storing workflow data as JSON files. Default: `.workflow-data/`
+Directory for storing workflow data as JSON files. Equivalent option: `dataDir`.
+Default: `.workflow-data/`
 
 ### `PORT`
 
-The application dev server port. Used to enqueue steps and workflows. Default: auto-detected
+The application dev server port. Equivalent option: `port`. Default:
+auto-detected
 
 ### `WORKFLOW_LOCAL_BASE_URL`
 
-Full base URL override for HTTPS or custom hostnames. Default: `http://localhost:{port}`
+Full base URL override for HTTPS or custom hostnames. Equivalent option:
+`baseUrl`. Default: `http://localhost:{port}`
 
 Port resolution priority: `baseUrl` > `port` > `PORT` > auto-detected
 
 ### `WORKFLOW_LOCAL_QUEUE_CONCURRENCY`
 
-Maximum number of concurrent queue workers. Default: `100`
+Maximum number of concurrent queue workers. Equivalent option:
+`queueConcurrency`. Default: `1000`
+
+### `WORKFLOW_LOCAL_QUEUE_MAX_VISIBILITY`
+
+Maximum queue visibility timeout in seconds. Equivalent option:
+`maxQueueVisibilitySeconds`. Default: unlimited
 
 ### Programmatic configuration
 
 Point `world` in `workflow.config.ts` at a World module:
 
 ```typescript title="workflow.world.ts" lineNumbers
-import { createLocalWorld } from "@workflow/world-local";
+import { createWorld } from "@workflow/world-local";
 import type { World } from "workflow/config";
 
-const world = createLocalWorld({
+const world = createWorld({
   dataDir: "./custom-workflow-data",
   port: 5173,
   // baseUrl overrides port if set
   baseUrl: "https://local.example.com:3000",
+  queueConcurrency: 50,
+  maxQueueVisibilitySeconds: 300,
 }) satisfies World;
 
 export default world;

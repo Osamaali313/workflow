@@ -3,8 +3,7 @@ import { rm } from 'node:fs/promises';
 import path from 'node:path';
 import type { QueuePrefix, World } from '@workflow/world';
 import { reenqueueActiveRuns, SPEC_VERSION_CURRENT } from '@workflow/world';
-import type { Config } from './config.js';
-import { config } from './config.js';
+import type { LocalWorldConfig } from './config.js';
 import {
   clearCreatedFilesCache,
   deleteJSON,
@@ -20,6 +19,7 @@ import { hashToken, hookRecoveryMarkerPath } from './storage/helpers.js';
 import { createStorage } from './storage.js';
 import { createStreamer } from './streamer.js';
 
+export type { LocalWorldConfig } from './config.js';
 // Re-export init types and utilities for consumers
 export {
   DataDirAccessError,
@@ -29,7 +29,6 @@ export {
   type ParsedVersion,
   parseVersion,
 } from './init.js';
-
 export type { DirectHandler } from './queue.js';
 
 export type LocalWorld = World & {
@@ -42,39 +41,37 @@ export type LocalWorld = World & {
 /**
  * Creates a local world instance that combines queue, storage, and streamer functionalities.
  *
- * @param args - Optional configuration object
- * @param args.dataDir - Directory for storing workflow data (default: `.workflow-data/`)
- * @param args.port - Port override for queue transport (default: auto-detected)
- * @param args.baseUrl - Full base URL override for queue transport (default: `http://localhost:{port}`)
- * @param args.recoverActiveRuns - Whether `start()` should re-enqueue pending/running runs from storage (default: `true`)
- * @param args.tag - Optional tag to scope files (e.g., `vitest-0`). When set, files are written
+ * @param config - Optional configuration object
+ * @param config.dataDir - Directory for storing workflow data (default: `.workflow-data/`)
+ * @param config.port - Port override for queue transport (default: auto-detected)
+ * @param config.baseUrl - Full base URL override for queue transport (default: `http://localhost:{port}`)
+ * @param config.queueConcurrency - Maximum concurrent queue workers (default: `1000`)
+ * @param config.maxQueueVisibilitySeconds - Maximum queue visibility timeout (default: unlimited)
+ * @param config.recoverActiveRuns - Whether `start()` should re-enqueue pending/running runs from storage (default: `true`)
+ * @param config.tag - Optional tag to scope files (e.g., `vitest-0`). When set, files are written
  *   as `{id}.{tag}.json` and `clear()` only deletes files matching this tag.
  * @throws {DataDirAccessError} If the data directory cannot be created or accessed
  * @throws {DataDirVersionError} If the data directory version is incompatible
  */
-export function createLocalWorld(args?: Partial<Config>): LocalWorld {
-  const definedArgs = args
-    ? Object.fromEntries(
-        Object.entries(args).filter(([, value]) => value !== undefined)
-      )
-    : {};
-  const mergedConfig = { ...config.value, ...definedArgs };
-  const tag = mergedConfig.tag;
-  const queue = createQueue(mergedConfig);
-  const storage = createStorage(mergedConfig.dataDir, tag);
-  const recoverActiveRuns = mergedConfig.recoverActiveRuns ?? true;
+export function createWorld(config: LocalWorldConfig = {}): LocalWorld {
+  const dataDir =
+    config.dataDir ?? process.env.WORKFLOW_LOCAL_DATA_DIR ?? '.workflow-data';
+  const tag = config.tag;
+  const queue = createQueue(config);
+  const storage = createStorage(dataDir, tag);
+  const recoverActiveRuns = config.recoverActiveRuns ?? true;
   return {
     specVersion: SPEC_VERSION_CURRENT,
     ...queue,
     ...storage,
     ...instrumentObject('world.streams', {
-      ...createStreamer(mergedConfig.dataDir, tag),
-      ...(mergedConfig.streamFlushIntervalMs !== undefined && {
-        streamFlushIntervalMs: mergedConfig.streamFlushIntervalMs,
+      ...createStreamer(dataDir, tag),
+      ...(config.streamFlushIntervalMs !== undefined && {
+        streamFlushIntervalMs: config.streamFlushIntervalMs,
       }),
     }),
     async start() {
-      await initDataDir(mergedConfig.dataDir);
+      await initDataDir(dataDir);
       if (!recoverActiveRuns) {
         return;
       }
@@ -96,7 +93,7 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
     async clear() {
       if (tag) {
         // Selectively delete only files matching this tag
-        const basedir = mergedConfig.dataDir;
+        const basedir = dataDir;
 
         // Delete hook token constraint files (and recovery markers,
         // for disk hygiene) BEFORE deleting the hooks, since we need
@@ -166,9 +163,12 @@ export function createLocalWorld(args?: Partial<Config>): LocalWorld {
         // Clear the in-memory write cache so deleted paths are forgotten
         clearCreatedFilesCache();
       } else {
-        await rm(mergedConfig.dataDir, { recursive: true, force: true });
-        await initDataDir(mergedConfig.dataDir);
+        await rm(dataDir, { recursive: true, force: true });
+        await initDataDir(dataDir);
       }
     },
   };
 }
+
+/** @deprecated Use `createWorld` instead. */
+export const createLocalWorld = createWorld;

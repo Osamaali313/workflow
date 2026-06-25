@@ -71,7 +71,7 @@ Select the World in `workflow.world.ts`. Use an application-specific variable
 when preview and production both run with `NODE_ENV=production`.
 
 ```typescript title="workflow.world.ts" lineNumbers
-import { createLocalWorld } from "@workflow/world-local";
+import { createWorld as createLocalWorld } from "@workflow/world-local";
 import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
 import type { World } from "workflow/config";
 

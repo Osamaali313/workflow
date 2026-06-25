@@ -52,7 +52,12 @@ describe('queue timeout re-enqueue', () => {
     vi.unstubAllGlobals();
   });
 
-  it('createQueueHandler returns 200 with timeoutSeconds in the body', async () => {
+  it('clamps timeoutSeconds to the configured max visibility', async () => {
+    await localQueue.close();
+    localQueue = createQueue({
+      baseUrl: 'http://localhost:3000',
+      maxQueueVisibilitySeconds: 10,
+    });
     const handler = localQueue.createQueueHandler('__wkf_step_', async () => ({
       timeoutSeconds: 30,
     }));
@@ -72,7 +77,7 @@ describe('queue timeout re-enqueue', () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body).toEqual({ timeoutSeconds: 30 });
+    expect(body).toEqual({ timeoutSeconds: 10 });
   });
 
   it('createQueueHandler returns 200 with ok:true when no timeout', async () => {

@@ -1,20 +1,18 @@
 import { getWorkflowPort } from '@workflow/utils/get-port';
-import { once } from './util.js';
-
-const getDataDirFromEnv = () => {
-  return process.env.WORKFLOW_LOCAL_DATA_DIR || '.workflow-data';
-};
 
 export const DEFAULT_RESOLVE_DATA_OPTION = 'all';
 
-const getBaseUrlFromEnv = () => {
-  return process.env.WORKFLOW_LOCAL_BASE_URL;
-};
-
-export type Config = {
-  dataDir: string;
+export type LocalWorldConfig = {
+  /** Filesystem directory for workflow state. Defaults to `.workflow-data`. */
+  dataDir?: string;
+  /** Local server port. Ignored when `baseUrl` is set. */
   port?: number;
+  /** Full queue and API base URL. */
   baseUrl?: string;
+  /** Maximum concurrent queue workers. Defaults to `1000`. */
+  queueConcurrency?: number;
+  /** Maximum queue visibility timeout in seconds. Defaults to unlimited. */
+  maxQueueVisibilitySeconds?: number;
   /**
    * Whether start() should re-enqueue pending/running runs from storage.
    * Defaults to true. Test harnesses that always start from a clean slate can
@@ -35,34 +33,27 @@ export type Config = {
   streamFlushIntervalMs?: number;
 };
 
-export const config = once<Config>(() => {
-  const dataDir = getDataDirFromEnv();
-  const baseUrl = getBaseUrlFromEnv();
-
-  return { dataDir, baseUrl };
-});
-
 /**
  * Resolves the base URL for queue requests following the priority order:
- * 1. config.baseUrl (highest priority - full override from args)
- * 2. WORKFLOW_LOCAL_BASE_URL env var (checked directly to handle late env var setting)
- * 3. config.port (explicit port override from args)
+ * 1. config.baseUrl
+ * 2. config.port
+ * 3. WORKFLOW_LOCAL_BASE_URL
  * 4. PORT env var (explicit configuration)
  * 5. Auto-detected port via getPort (detect actual listening port)
  */
-export async function resolveBaseUrl(config: Partial<Config>): Promise<string> {
+export async function resolveBaseUrl(
+  config: LocalWorldConfig
+): Promise<string> {
   if (config.baseUrl) {
     return config.baseUrl;
   }
 
-  // Check env var directly in case it was set after the config was cached
-  // This is important for CLI tools that set the env var after module import
-  if (process.env.WORKFLOW_LOCAL_BASE_URL) {
-    return process.env.WORKFLOW_LOCAL_BASE_URL;
-  }
-
   if (typeof config.port === 'number') {
     return `http://localhost:${config.port}`;
+  }
+
+  if (process.env.WORKFLOW_LOCAL_BASE_URL) {
+    return process.env.WORKFLOW_LOCAL_BASE_URL;
   }
 
   if (process.env.PORT) {

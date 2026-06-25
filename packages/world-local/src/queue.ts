@@ -11,7 +11,7 @@ import { Sema } from 'async-sema';
 import { monotonicFactory } from 'ulid';
 import { Agent } from 'undici';
 import { z } from 'zod/v4';
-import type { Config } from './config.js';
+import type { LocalWorldConfig } from './config.js';
 import { resolveBaseUrl } from './config.js';
 import { jsonReplacer, jsonReviver } from './fs.js';
 import { getPackageInfo } from './init.js';
@@ -41,12 +41,6 @@ class TypedJsonTransport implements Transport<unknown> {
   }
 }
 
-// For local queue, there is no technical limit on the message visibility lifespan,
-// but the environment variable can be used for testing purposes to set a max visibility limit.
-const LOCAL_QUEUE_MAX_VISIBILITY =
-  parseInt(process.env.WORKFLOW_LOCAL_QUEUE_MAX_VISIBILITY ?? '0', 10) ||
-  Infinity;
-
 // Maximum safe delay for setTimeout in Node.js (2^31 - 1 milliseconds ≈ 24.85 days)
 // Larger values cause "TimeoutOverflowWarning: X does not fit into a 32-bit signed integer"
 // When the clamped timeout fires, the handler will recalculate remaining time from
@@ -56,9 +50,6 @@ const MAX_SAFE_TIMEOUT_MS = 2147483647;
 // The local workers share the same Node.js process and event loop,
 // so we need to limit concurrency to avoid overwhelming the system.
 const DEFAULT_CONCURRENCY_LIMIT = 1000;
-const WORKFLOW_LOCAL_QUEUE_CONCURRENCY =
-  parseInt(process.env.WORKFLOW_LOCAL_QUEUE_CONCURRENCY ?? '0', 10) ||
-  DEFAULT_CONCURRENCY_LIMIT;
 
 export type DirectHandler = (req: Request) => Promise<Response>;
 
@@ -105,7 +96,16 @@ function getQueueRoute(queueName: ValidQueueName): {
   };
 }
 
-export function createQueue(config: Partial<Config>): LocalQueue {
+export function createQueue(config: LocalWorldConfig): LocalQueue {
+  const queueConcurrency =
+    config.queueConcurrency ??
+    (parseInt(process.env.WORKFLOW_LOCAL_QUEUE_CONCURRENCY ?? '0', 10) ||
+      DEFAULT_CONCURRENCY_LIMIT);
+  const maxQueueVisibilitySeconds =
+    config.maxQueueVisibilitySeconds ??
+    (parseInt(process.env.WORKFLOW_LOCAL_QUEUE_MAX_VISIBILITY ?? '0', 10) ||
+      Infinity);
+
   // Create a custom agent optimized for high-concurrency local workflows:
   // - headersTimeout: 0 allows long-running steps
   // - connections: 1000 allows many parallel connections to the same host
@@ -118,7 +118,7 @@ export function createQueue(config: Partial<Config>): LocalQueue {
   });
   const transport = new TypedJsonTransport();
   const generateId = monotonicFactory();
-  const semaphore = new Sema(WORKFLOW_LOCAL_QUEUE_CONCURRENCY);
+  const semaphore = new Sema(queueConcurrency);
 
   // Aborted by close(): cancels every pending sleep (delayed deliveries,
   // timeoutSeconds re-deliveries, retry backoffs) so shutdown isn't held
@@ -181,7 +181,7 @@ export function createQueue(config: Partial<Config>): LocalQueue {
       const token = semaphore.tryAcquire();
       if (!token) {
         console.warn(
-          `[world-local]: concurrency limit (${WORKFLOW_LOCAL_QUEUE_CONCURRENCY}) reached, waiting for queue to free up`
+          `[world-local]: concurrency limit (${queueConcurrency}) reached, waiting for queue to free up`
         );
         await semaphore.acquire();
       }
@@ -352,7 +352,7 @@ export function createQueue(config: Partial<Config>): LocalQueue {
         if (typeof result?.timeoutSeconds === 'number') {
           timeoutSeconds = Math.min(
             result.timeoutSeconds,
-            LOCAL_QUEUE_MAX_VISIBILITY
+            maxQueueVisibilitySeconds
           );
         }
 
