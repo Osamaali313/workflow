@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runtimeLogger } from '../logger.js';
 import {
   _resetReplayTimeoutWarnCacheForTests,
+  getInlineExecutionTimeoutMs,
   getMaxInlineSteps,
   getReplayTimeoutMs,
+  INLINE_EXECUTION_TIMEOUT_MS,
   isOptimisticInlineStartEnabled,
   isOptimisticInlineStartExplicitlyDisabled,
   isTurboEnabled,
@@ -39,6 +41,11 @@ describe('getReplayTimeoutMs', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
+  it('uses the configured value when the env var is unset', () => {
+    expect(getReplayTimeoutMs(300_000)).toBe(300_000);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('returns the default when the env var is empty', () => {
     process.env.WORKFLOW_REPLAY_TIMEOUT_MS = '';
     expect(getReplayTimeoutMs()).toBe(REPLAY_TIMEOUT_MS);
@@ -50,6 +57,12 @@ describe('getReplayTimeoutMs', () => {
     expect(getReplayTimeoutMs()).toBe(REPLAY_TIMEOUT_MS);
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy.mock.calls[0][0]).toContain('not a positive finite number');
+  });
+
+  it('uses the configured value when the env var is invalid', () => {
+    process.env.WORKFLOW_REPLAY_TIMEOUT_MS = 'not-a-number';
+    expect(getReplayTimeoutMs(300_000)).toBe(300_000);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 
   it('returns the default and warns when the env var is zero', () => {
@@ -84,6 +97,12 @@ describe('getReplayTimeoutMs', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
+  it('prefers the env var over the configured value', () => {
+    process.env.WORKFLOW_REPLAY_TIMEOUT_MS = '600000';
+    expect(getReplayTimeoutMs(300_000)).toBe(600_000);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('accepts the lower-bound value exactly without warning', () => {
     process.env.WORKFLOW_REPLAY_TIMEOUT_MS = String(MIN_REPLAY_TIMEOUT_MS);
     expect(getReplayTimeoutMs()).toBe(MIN_REPLAY_TIMEOUT_MS);
@@ -114,6 +133,33 @@ describe('getReplayTimeoutMs', () => {
     getReplayTimeoutMs();
     getReplayTimeoutMs();
     expect(warnSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getInlineExecutionTimeoutMs', () => {
+  const originalEnv = process.env.WORKFLOW_V2_TIMEOUT_MS;
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.WORKFLOW_V2_TIMEOUT_MS;
+    } else {
+      process.env.WORKFLOW_V2_TIMEOUT_MS = originalEnv;
+    }
+  });
+
+  it('returns the default when the env var and config are unset', () => {
+    delete process.env.WORKFLOW_V2_TIMEOUT_MS;
+    expect(getInlineExecutionTimeoutMs()).toBe(INLINE_EXECUTION_TIMEOUT_MS);
+  });
+
+  it('uses the configured value when the env var is unset', () => {
+    delete process.env.WORKFLOW_V2_TIMEOUT_MS;
+    expect(getInlineExecutionTimeoutMs(90_000)).toBe(90_000);
+  });
+
+  it('prefers the env var over the configured value', () => {
+    process.env.WORKFLOW_V2_TIMEOUT_MS = '60000';
+    expect(getInlineExecutionTimeoutMs(90_000)).toBe(60_000);
   });
 });
 

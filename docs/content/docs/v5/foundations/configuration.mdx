@@ -25,6 +25,10 @@ const config = {
     dirs: ["workflows"],
     sourcemap: false,
   },
+  runtime: {
+    replayTimeoutMs: 240_000,
+    inlineExecutionTimeoutMs: 120_000,
+  },
 } satisfies WorkflowConfig;
 
 export default config;
@@ -71,8 +75,8 @@ Select the World in `workflow.world.ts`. Use an application-specific variable
 when preview and production both run with `NODE_ENV=production`.
 
 ```typescript title="workflow.world.ts" lineNumbers
-import { createWorld as createLocalWorld } from "@workflow/world-local";
-import { createWorld as createPostgresWorld } from "@workflow/world-postgres";
+import { createWorld as localWorld } from "@workflow/world-local";
+import { createWorld as postgresWorld } from "@workflow/world-postgres";
 import type { World } from "workflow/config";
 
 const appEnv = process.env.APP_ENV;
@@ -90,10 +94,10 @@ const production =
 
 const world = (
   production
-    ? createPostgresWorld({
+    ? postgresWorld({
         connectionString: process.env.WORKFLOW_POSTGRES_URL!,
       })
-    : createLocalWorld()
+    : localWorld()
 ) satisfies World;
 
 export default world;
@@ -106,3 +110,10 @@ export default world;
 | `build.dirs` | `string[]` | Directories to scan for workflow code |
 | `build.projectRoot` | `string` | Root for tracing, module resolution, and TypeScript configuration |
 | `build.sourcemap` | `boolean \| "inline" \| "linked" \| "external" \| "both"` | Source map mode for generated bundles |
+
+## Runtime Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `runtime.replayTimeoutMs` | `number` | Maximum non-step replay time for one workflow handler invocation |
+| `runtime.inlineExecutionTimeoutMs` | `number` | Wall-clock budget for the combined handler before it re-queues itself |

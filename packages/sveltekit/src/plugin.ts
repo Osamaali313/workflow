@@ -25,6 +25,7 @@ export function workflowPlugin(options: WorkflowPluginOptions = {}): Plugin[] {
   const builder = new SvelteKitBuilder({
     dirs: build?.dirs,
     projectRoot: build?.projectRoot,
+    runtimeConfig: loadedWorkflowConfig.config.runtime,
     worldModule: loadedWorkflowConfig.worldModule,
     sourcemap:
       options.sourcemap ??

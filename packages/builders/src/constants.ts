@@ -1,3 +1,5 @@
+import type { WorkflowRuntimeConfig } from './workflow-config.js';
+
 const QUEUE_NAMESPACE_PATTERN = /^[a-z][a-z0-9]*$/;
 
 function resolveQueueNamespace(namespace?: string): string | undefined {
@@ -54,6 +56,7 @@ export function createWorkflowQueueTrigger(options?: { namespace?: string }) {
  */
 export function createWorkflowEntrypointOptionsCode(options?: {
   namespace?: string;
+  runtime?: WorkflowRuntimeConfig;
   /** Raw code identifier/expression emitted into generated route files, not data. */
   routeModuleBodyStartedAt?: string;
 }) {
@@ -64,6 +67,19 @@ export function createWorkflowEntrypointOptionsCode(options?: {
     // Reuse prefix construction for namespace validation.
     getQueueTopicPrefix('workflow', namespace);
     fields.push(`namespace: ${JSON.stringify(namespace)}`);
+  }
+
+  const runtimeFields: string[] = [];
+  if (options?.runtime?.replayTimeoutMs !== undefined) {
+    runtimeFields.push(`replayTimeoutMs: ${options.runtime.replayTimeoutMs}`);
+  }
+  if (options?.runtime?.inlineExecutionTimeoutMs !== undefined) {
+    runtimeFields.push(
+      `inlineExecutionTimeoutMs: ${options.runtime.inlineExecutionTimeoutMs}`
+    );
+  }
+  if (runtimeFields.length > 0) {
+    fields.push(`runtime: { ${runtimeFields.join(', ')} }`);
   }
 
   if (options?.routeModuleBodyStartedAt) {

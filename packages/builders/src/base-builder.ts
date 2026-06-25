@@ -1455,6 +1455,7 @@ export const __steps_registered = true;
 
       const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode(
         {
+          runtime: this.config.runtimeConfig,
           routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
         }
       );
@@ -1651,6 +1652,7 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
     const stepsRelativePath = `./${basename(stepsOutfile).replace(/\\/g, '/')}`;
     const escapedVMCode = workflowVMCode.replace(/[\\`$]/g, '\\$&');
     const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode({
+      runtime: this.config.runtimeConfig,
       routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
     });
 
@@ -1727,6 +1729,7 @@ export const POST = workflowEntrypoint(workflowCode${workflowEntrypointOptionsCo
       const escaped = interimBundleText.replace(/[\\`$]/g, '\\$&');
       const workflowEntrypointOptionsCode = createWorkflowEntrypointOptionsCode(
         {
+          runtime: this.config.runtimeConfig,
           routeModuleBodyStartedAt: 'workflowRouteModuleBodyStartedAt',
         }
       );

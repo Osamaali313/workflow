@@ -44,6 +44,7 @@ export const getWorkflowConfig = async (options: {
     workingDir,
     projectRoot: fileConfig.build?.projectRoot,
     worldModule: loadedConfig.worldModule,
+    runtimeConfig: fileConfig.runtime,
     sourcemap: process.env.WORKFLOW_SOURCEMAP
       ? undefined
       : fileConfig.build?.sourcemap,

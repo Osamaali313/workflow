@@ -11,4 +11,4 @@
 "workflow": minor
 ---
 
-Add typed configuration for shared build settings and World modules.
+Add typed configuration for shared build/runtime settings and World modules.

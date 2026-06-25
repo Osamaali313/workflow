@@ -31,7 +31,7 @@ describe('createWorkflowEntrypointOptionsCode', () => {
     delete process.env.WORKFLOW_QUEUE_NAMESPACE;
   });
 
-  it('omits runtime options without a namespace', () => {
+  it('omits options without values', () => {
     expect(createWorkflowEntrypointOptionsCode()).toBe('');
   });
 
@@ -57,6 +57,19 @@ describe('createWorkflowEntrypointOptionsCode', () => {
       })
     ).toBe(
       ', { namespace: "custom", routeModuleBodyStartedAt: workflowRouteModuleBodyStartedAt }'
+    );
+  });
+
+  it('inlines runtime options', () => {
+    expect(
+      createWorkflowEntrypointOptionsCode({
+        runtime: {
+          replayTimeoutMs: 300_000,
+          inlineExecutionTimeoutMs: 90_000,
+        },
+      })
+    ).toBe(
+      ', { runtime: { replayTimeoutMs: 300000, inlineExecutionTimeoutMs: 90000 } }'
     );
   });
 });

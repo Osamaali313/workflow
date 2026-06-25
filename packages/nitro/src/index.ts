@@ -85,6 +85,7 @@ const internalNitroModule = {
     const publicManifest = process.env.WORKFLOW_PUBLIC_MANIFEST === '1';
     const builderConfig = {
       projectRoot: workflowConfig.build?.projectRoot,
+      runtimeConfig: workflowConfig.runtime,
       worldModule,
     };
     if (worldModule) {

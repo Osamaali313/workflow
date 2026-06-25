@@ -33,8 +33,8 @@ export const MAX_QUEUE_DELIVERIES = 48;
  * Fluid Compute on Hobby the per-function ceiling rises to 300s, still
  * under the default budget.
  *
- * Override via the `WORKFLOW_REPLAY_TIMEOUT_MS` env var (clamped to
- * `MIN_REPLAY_TIMEOUT_MS`..`MAX_REPLAY_TIMEOUT_MS`).
+ * Override via `runtime.replayTimeoutMs` in `workflow.config.ts` or the
+ * legacy `WORKFLOW_REPLAY_TIMEOUT_MS` env var.
  */
 export const REPLAY_TIMEOUT_MS = 240_000;
 
@@ -71,17 +71,18 @@ function warnOnce(
  * not a hard requirement) and emit a one-time warning so misconfiguration
  * is observable.
  */
-export function getReplayTimeoutMs(): number {
+export function getReplayTimeoutMs(configuredMs?: number): number {
+  const fallbackMs = configuredMs ?? REPLAY_TIMEOUT_MS;
   const raw = process.env.WORKFLOW_REPLAY_TIMEOUT_MS;
-  if (!raw) return REPLAY_TIMEOUT_MS;
+  if (!raw) return fallbackMs;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     warnOnce(
       raw,
-      'Ignoring WORKFLOW_REPLAY_TIMEOUT_MS: not a positive finite number; using default',
-      { raw, defaultMs: REPLAY_TIMEOUT_MS }
+      'Ignoring WORKFLOW_REPLAY_TIMEOUT_MS: not a positive finite number',
+      { raw, fallbackMs }
     );
-    return REPLAY_TIMEOUT_MS;
+    return fallbackMs;
   }
   if (parsed < MIN_REPLAY_TIMEOUT_MS) {
     warnOnce(raw, 'WORKFLOW_REPLAY_TIMEOUT_MS below minimum; clamped', {
@@ -100,6 +101,14 @@ export function getReplayTimeoutMs(): number {
     return MAX_REPLAY_TIMEOUT_MS;
   }
   return parsed;
+}
+
+export const INLINE_EXECUTION_TIMEOUT_MS = 120_000;
+
+export function getInlineExecutionTimeoutMs(configuredMs?: number): number {
+  const parsed = Number(process.env.WORKFLOW_V2_TIMEOUT_MS);
+  if (parsed) return parsed;
+  return configuredMs ?? INLINE_EXECUTION_TIMEOUT_MS;
 }
 
 /**

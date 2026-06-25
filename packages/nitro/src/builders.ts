@@ -1,5 +1,9 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { BaseBuilder, VercelBuildOutputAPIBuilder } from '@workflow/builders';
+import {
+  BaseBuilder,
+  VercelBuildOutputAPIBuilder,
+  type WorkflowRuntimeConfig,
+} from '@workflow/builders';
 import type { Nitro } from 'nitro/types';
 import { join } from 'pathe';
 
@@ -7,6 +11,7 @@ type NitroV2ExternalsOptions = { externals?: { external?: unknown[] } };
 
 type NitroBuilderConfig = {
   projectRoot?: string;
+  runtimeConfig?: WorkflowRuntimeConfig;
   worldModule?: string;
 };
 

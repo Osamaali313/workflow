@@ -115,7 +115,7 @@ Incremental loading depends on the World returning a cursor even on the final pa
 
 ## Timeout Handling
 
-The inline execution loop checks wall-clock time before each replay iteration. If the elapsed time exceeds a configurable threshold (default: 110 seconds, for a 120-second function limit), the handler re-schedules itself via the queue and returns. Configurable via `WORKFLOW_V2_TIMEOUT_MS`.
+The inline execution loop checks wall-clock time before each replay iteration. If the elapsed time exceeds a configurable threshold (default: 120 seconds), the handler re-schedules itself via the queue and returns. Configurable via `runtime.inlineExecutionTimeoutMs` in `workflow.config.ts`.
 
 If a single step takes longer than the timeout threshold, the step runs to completion (or SIGKILL) — there is no interruption mechanism for in-progress step execution. This is the same behavior as the previous architecture.
 

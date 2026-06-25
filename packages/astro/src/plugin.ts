@@ -42,6 +42,7 @@ export function workflowPlugin(
           workingDir,
           dirs: build?.dirs,
           projectRoot: build?.projectRoot,
+          runtimeConfig: loaded.config.runtime,
           worldModule,
           sourcemap:
             options.sourcemap ??

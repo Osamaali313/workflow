@@ -1,6 +1,12 @@
-import type { SourcemapMode } from './workflow-config.js';
+import type {
+  SourcemapMode,
+  WorkflowRuntimeConfig,
+} from './workflow-config.js';
 
-export type { SourcemapMode } from './workflow-config.js';
+export type {
+  SourcemapMode,
+  WorkflowRuntimeConfig,
+} from './workflow-config.js';
 
 export const validBuildTargets = [
   'standalone',
@@ -43,6 +49,9 @@ export interface BaseBuilderConfig {
 
   /** @internal Resolved World module from workflow.config.ts. */
   worldModule?: string;
+
+  /** @internal Resolved runtime options from workflow.config.ts. */
+  runtimeConfig?: WorkflowRuntimeConfig;
 
   // Optional prefix for debug files (e.g., "_" for Astro to ignore them)
   debugFilePrefix?: string;

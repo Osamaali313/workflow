@@ -532,6 +532,7 @@ export function withWorkflow(
             distDir,
             diagnosticsDir: `${distDir}/diagnostics`,
             buildTarget: 'next',
+            runtimeConfig: workflowConfig.runtime,
             sourcemap:
               workflows?.sourcemap ??
               (process.env.WORKFLOW_SOURCEMAP

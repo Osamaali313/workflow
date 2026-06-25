@@ -12,6 +12,11 @@ const sourcemapSchema = z.union([
   z.enum(['inline', 'linked', 'external', 'both']),
 ]);
 
+const workflowRuntimeConfigSchema = z.strictObject({
+  replayTimeoutMs: z.number().int().min(30_000).max(780_000).optional(),
+  inlineExecutionTimeoutMs: z.number().int().positive().optional(),
+});
+
 const workflowConfigSchema = z.strictObject({
   world: z.string().min(1).optional(),
   build: z
@@ -21,9 +26,11 @@ const workflowConfigSchema = z.strictObject({
       sourcemap: sourcemapSchema.optional(),
     })
     .optional(),
+  runtime: workflowRuntimeConfigSchema.optional(),
 });
 
 export type SourcemapMode = z.infer<typeof sourcemapSchema>;
+export type WorkflowRuntimeConfig = z.infer<typeof workflowRuntimeConfigSchema>;
 export type WorkflowConfig = z.infer<typeof workflowConfigSchema>;
 
 export type LoadedWorkflowConfig = {

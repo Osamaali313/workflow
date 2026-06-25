@@ -28,6 +28,7 @@ import { describeError } from './describe-error.js';
 import { WorkflowSuspension } from './global.js';
 import { runtimeLogger } from './logger.js';
 import {
+  getInlineExecutionTimeoutMs,
   isTurboEnabled,
   MAX_QUEUE_DELIVERIES,
   REPLAY_DIVERGENCE_MAX_RETRIES,
@@ -287,10 +288,18 @@ function hasOpenHookOrWait(events: Event[]): boolean {
  */
 export function workflowEntrypoint(
   workflowCode: string,
-  options?: { namespace?: string; routeModuleBodyStartedAt?: number }
+  options?: {
+    namespace?: string;
+    routeModuleBodyStartedAt?: number;
+    runtime?: {
+      replayTimeoutMs?: number;
+      inlineExecutionTimeoutMs?: number;
+    };
+  }
 ): (req: Request) => Promise<Response> {
-  const NO_INLINE_REPLAY_AFTER_MS =
-    Number(process.env.WORKFLOW_V2_TIMEOUT_MS) || 120_000;
+  const NO_INLINE_REPLAY_AFTER_MS = getInlineExecutionTimeoutMs(
+    options?.runtime?.inlineExecutionTimeoutMs
+  );
 
   const namespace = resolveQueueNamespace(options?.namespace);
   const workflowPrefix = getQueueTopicPrefix('workflow', namespace);
@@ -445,7 +454,9 @@ export function workflowEntrypoint(
         // Earlier versions (pre-#2009 fix) used a single `setTimeout`
         // that also bounded step bodies, which broke any workflow with a
         // single step longer than the budget.
-        const replayBudget = new ReplayBudget();
+        const replayBudget = new ReplayBudget(
+          options?.runtime?.replayTimeoutMs
+        );
 
         // In linked mode the run-origin context is NOT restored as the
         // active (parent) context — passing `undefined` makes

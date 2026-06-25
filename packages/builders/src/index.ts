@@ -57,6 +57,7 @@ export type {
   SvelteKitConfig,
   VercelBuildOutputConfig,
   WorkflowConfig,
+  WorkflowRuntimeConfig,
 } from './types.js';
 export { isValidBuildTarget, validBuildTargets } from './types.js';
 export { VercelBuildOutputAPIBuilder } from './vercel-build-output-api.js';
