@@ -55,12 +55,20 @@ import {
   getEventV4,
   getWorkflowRunEventsV4,
 } from './events-v4.js';
-import { cancelWorkflowRunV1, createWorkflowRunV1 } from './runs.js';
+import {
+  cancelWorkflowRunV1,
+  createWorkflowRunV1,
+  filterRunData,
+} from './runs.js';
+import {
+  normalizeEventData,
+  normalizeHookData,
+  normalizeSerializedData,
+} from './serialized-data.js';
 import { deserializeStep } from './steps.js';
 import {
   type APIConfig,
   DEFAULT_RESOLVE_DATA_OPTION,
-  deserializeError,
   makeRequest,
 } from './utils.js';
 
@@ -401,6 +409,10 @@ function coerceEventDates(raw: Record<string, unknown>): Event {
   return raw as unknown as Event;
 }
 
+function coerceNormalizedEvent(raw: Record<string, unknown>): Event {
+  return coerceEventDates(normalizeEventData(raw));
+}
+
 /**
  * Turn a v4 event (frame meta + frame body) into the Event shape the
  * workflow runtime expects.
@@ -408,10 +420,11 @@ function coerceEventDates(raw: Record<string, unknown>): Event {
  * Both GET single-event and LIST use the same frame format: meta is the
  * full event entity with the payload field as a RefDescriptor, body is
  * the resolved payload bytes (possibly empty). This helper splices the
- * body bytes into `eventData[fieldName]` unchanged — the runtime's
- * hydrate helpers (hydrateStepIO, hydrateRunError, …) consume the raw
- * devalue-with-format-prefix Uint8Array directly. No CBOR decode here,
- * symmetric with the pass-through write in `splitEventDataForV4`.
+ * body bytes into `eventData[fieldName]`, normalizing any zstd wrapper
+ * back to the raw devalue-with-format-prefix Uint8Array the runtime's
+ * hydrate helpers (hydrateStepIO, hydrateRunError, …) consume. No CBOR
+ * decode here, symmetric with the pass-through write in
+ * `splitEventDataForV4`.
  */
 function buildEventFromV4(
   decoded: DecodedV4Event,
@@ -422,7 +435,10 @@ function buildEventFromV4(
 
   if (payloadBody.byteLength > 0) {
     const payloadField = payloadFieldFor(decoded.eventType);
-    if (payloadField) eventData[payloadField] = payloadBody;
+    const normalizedPayload = normalizeSerializedData(payloadBody);
+    if (payloadField && normalizedPayload instanceof Uint8Array) {
+      eventData[payloadField] = normalizedPayload;
+    }
   }
 
   const raw = {
@@ -448,7 +464,7 @@ function buildEventFromV4(
       : {}),
   };
 
-  const event = coerceEventDates(raw);
+  const event = coerceNormalizedEvent(raw);
 
   // For resolveData='none', strip eventData entirely. Reuse the world-
   // side helper so behavior stays in sync with other backends.
@@ -627,9 +643,10 @@ async function createWorkflowRunEventInner(
   );
 
   // The server already CBOR-decoded into result.body — just thread the
-  // fields through. Step has a wire-format adapter; runs use the
-  // pass-through deserializeError helper (run/step dates arrive as real
-  // Dates — the server's entity getters convert before CBOR-encoding).
+  // fields through. Step/run/hook adapters normalize the wire-format
+  // payload fields before handing them to runtime hydration (run/step
+  // dates arrive as real Dates — the server's entity getters convert
+  // before CBOR-encoding).
   // The returned `event` and preloaded `events` go through
   // coerceEventDates: they can be read back from the backing store
   // server-side (e.g. the run_started TTFB preload queries the event
@@ -644,20 +661,24 @@ async function createWorkflowRunEventInner(
   return {
     event: body.event
       ? stripEventDataRefs(
-          coerceEventDates(body.event as Record<string, unknown>),
+          coerceNormalizedEvent(body.event as Record<string, unknown>),
           resolveData
         )
       : undefined,
     run: body.run
-      ? deserializeError<WorkflowRun>(body.run as Record<string, unknown>)
+      ? (filterRunData(body.run, resolveData) as EventResult['run'])
       : undefined,
     step: body.step
       ? deserializeStep(body.step as Parameters<typeof deserializeStep>[0])
       : undefined,
-    hook: body.hook as EventResult['hook'],
+    hook: body.hook
+      ? (normalizeHookData(
+          body.hook as Record<string, unknown>
+        ) as EventResult['hook'])
+      : undefined,
     wait: body.wait as EventResult['wait'],
     events: body.events
-      ? (body.events as Record<string, unknown>[]).map(coerceEventDates)
+      ? (body.events as Record<string, unknown>[]).map(coerceNormalizedEvent)
       : undefined,
     cursor: body.cursor ?? undefined,
     hasMore: body.hasMore,

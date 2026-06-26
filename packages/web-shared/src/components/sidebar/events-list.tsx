@@ -1,8 +1,12 @@
 'use client';
 
-import { EVENT_DATA_REF_FIELDS, type Event } from '@workflow/world';
+import type { Event } from '@workflow/world';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { hasEncryptedFields, isExpiredMarker } from '../../lib/hydration';
+import {
+  getEventDataRefFields,
+  hasEncryptedFields,
+  isExpiredMarker,
+} from '../../lib/hydration';
 import { RunClickContext, StreamClickContext } from '../ui/data-inspector';
 import { ErrorCard } from '../ui/error-card';
 import { ErrorStackBlock, isStructuredError } from '../ui/error-stack-block';
@@ -179,7 +183,7 @@ function EventItem({
 
 /**
  * Check if an eventData object has only expired marker values in ref/payload
- * fields for this event type (see {@link EVENT_DATA_REF_FIELDS}). Other keys
+ * fields for this event type (see {@link getEventDataRefFields}). Other keys
  * (e.g. `resumeAt`, `stepName`) are ignored.
  */
 function hasOnlyExpiredFields(data: unknown, eventType: string): boolean {
@@ -187,7 +191,7 @@ function hasOnlyExpiredFields(data: unknown, eventType: string): boolean {
     return false;
   }
   const record = data as Record<string, unknown>;
-  const refKeys = EVENT_DATA_REF_FIELDS[eventType] ?? [];
+  const refKeys = getEventDataRefFields(eventType);
   const presentKeys = refKeys.filter((k) => k in record);
   return (
     presentKeys.length > 0 &&
