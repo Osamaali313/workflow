@@ -537,12 +537,18 @@ const HEALTH_CHECK_CORS_HEADERS = {
  */
 export function withHealthCheck(
   handler: (req: Request) => Promise<Response>,
-  worldSpecVersion?: number
+  options: {
+    worldSpecVersion?: number;
+    onPostHealthCheck?: () => void;
+  } = {}
 ): (req: Request) => Promise<Response> {
   return async (req: Request) => {
     const url = new URL(req.url);
     const isHealthCheck = url.searchParams.has('__health');
     if (isHealthCheck) {
+      if (req.method === 'POST') {
+        options.onPostHealthCheck?.();
+      }
       // Handle CORS preflight for health check
       if (req.method === 'OPTIONS') {
         return new Response(null, {
@@ -554,7 +560,7 @@ export function withHealthCheck(
         JSON.stringify({
           healthy: true,
           endpoint: url.pathname,
-          specVersion: worldSpecVersion ?? SPEC_VERSION_CURRENT,
+          specVersion: options.worldSpecVersion ?? SPEC_VERSION_CURRENT,
           workflowCoreVersion,
         }),
         {
