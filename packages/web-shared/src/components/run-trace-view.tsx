@@ -2,6 +2,7 @@
 
 import type { Event, Hook, WorkflowRun } from '@workflow/world';
 import { AlertCircle } from 'lucide-react';
+import type { WorkflowSpanTimingMap } from '../lib/workflow-span-timing';
 import type { FetchSpanDetail } from './sidebar/use-selected-span-detail';
 import { WorkflowTraceViewer } from './workflow-trace-view';
 
@@ -26,6 +27,7 @@ interface RunTraceViewProps {
   onLoadMoreSpans?: () => void | Promise<void>;
   hasMoreSpans?: boolean;
   isLoadingMoreSpans?: boolean;
+  spanTimings?: WorkflowSpanTimingMap;
 }
 
 export function RunTraceView({
@@ -42,6 +44,7 @@ export function RunTraceView({
   onLoadMoreSpans,
   hasMoreSpans,
   isLoadingMoreSpans,
+  spanTimings,
 }: RunTraceViewProps) {
   if (error && !run) {
     return (
@@ -69,6 +72,7 @@ export function RunTraceView({
         onLoadMoreSpans={onLoadMoreSpans}
         hasMoreSpans={hasMoreSpans}
         isLoadingMoreSpans={isLoadingMoreSpans}
+        spanTimings={spanTimings}
       />
     </div>
   );
