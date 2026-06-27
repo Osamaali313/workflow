@@ -1,5 +1,28 @@
 # workflow
 
+## 4.6.0
+
+### Minor Changes
+
+- [`f2ad726`](https://github.com/vercel/workflow/commit/f2ad7261b14dd64085c80584b9d472019414b512) - Add wire-level framing for byte streams (`type: 'bytes'`) so consumers can identify chunk boundaries — a prerequisite for transparent auto-reconnect.
+
+### Patch Changes
+
+- [`0a5e2aa`](https://github.com/vercel/workflow/commit/0a5e2aa247bc8e4e45d389a2af839110723ce863) - Memoize hydrated step return values across inline replay iterations, turning the per-invocation step-result decrypt+parse cost from O(N²) to O(N) for sequential workflows. Only primitive results are cached, so deterministic replay is preserved.
+
+- Updated dependencies [[`c4ed84f`](https://github.com/vercel/workflow/commit/c4ed84f1630efa50d20640bc942623c3e648ef21), [`f2ad726`](https://github.com/vercel/workflow/commit/f2ad7261b14dd64085c80584b9d472019414b512), [`977a4a2`](https://github.com/vercel/workflow/commit/977a4a29d9d900380fa8f6058e9dab6514b64de6), [`3bb5de1`](https://github.com/vercel/workflow/commit/3bb5de1669ae79e9536c93a5a46b7304a3c90ce4), [`20a6d73`](https://github.com/vercel/workflow/commit/20a6d73a0aa03b4b2f7318d97e12a5e7818c67d9), [`015452a`](https://github.com/vercel/workflow/commit/015452a70c52044635d24a134b7b984b6d2e1142), [`ba62f57`](https://github.com/vercel/workflow/commit/ba62f575e249845d762984f75fcb1a7405a3c8fc), [`578f7e1`](https://github.com/vercel/workflow/commit/578f7e1f1b03d2a7eb39591aa457931b960755cb), [`5a4c6cf`](https://github.com/vercel/workflow/commit/5a4c6cff3ec52038a417cb68bc720bfa15f090e0), [`db8a2c4`](https://github.com/vercel/workflow/commit/db8a2c49820530f7a331bb4c1f0a803e03547831), [`170ea96`](https://github.com/vercel/workflow/commit/170ea9659a2b9c26e611bab8bb5131f9c6cdc14d), [`0a5e2aa`](https://github.com/vercel/workflow/commit/0a5e2aa247bc8e4e45d389a2af839110723ce863), [`a4dd59b`](https://github.com/vercel/workflow/commit/a4dd59be8c023dad2c173ad4cf1ed565ced34c56), [`c5d14c8`](https://github.com/vercel/workflow/commit/c5d14c8a89b12cabd6ce9e008afb41780bff2adc)]:
+  - @workflow/astro@4.0.11
+  - @workflow/core@4.6.0
+  - @workflow/next@4.1.0
+  - @workflow/cli@4.3.0
+  - @workflow/nest@4.0.12
+  - @workflow/nitro@4.1.2
+  - @workflow/typescript-plugin@4.0.3
+  - @workflow/rollup@4.0.11
+  - @workflow/sveltekit@4.0.11
+  - @workflow/errors@4.1.4
+  - @workflow/nuxt@4.0.12
+
 ## 4.5.0
 
 ### Minor Changes
