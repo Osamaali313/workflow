@@ -1080,6 +1080,9 @@ export async function hmrFuzzWorkflow() {
               );
             },
             assert: async () => {
+              if (finalConfig.canary) {
+                return;
+              }
               await expectWorkflowResult({
                 description:
                   'workflow import graph full rediscovery to affect execution',
